@@ -1,0 +1,156 @@
+.destination-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.map-container {
+  flex: 1;
+  height: 100vh;
+  position: relative;
+}
+
+/* Back button styles - updated positioning */
+.back-button {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: var(--white);
+  color: var(--text-dark);
+  box-shadow: var(--shadow);
+  border: none;
+  padding: 8px 15px;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+/* Floating back button - visible when sidebar is collapsed */
+.back-button.floating {
+  position: absolute;
+  top: 20px;
+  left: 50px;
+  z-index: 1001;
+}
+
+.back-button:hover {
+  background-color: var(--primary);
+  color: var(--white);
+}
+
+.back-button span {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* Sidebar container styles */
+.sidebar-container {
+  position: relative;
+  height: 100vh;
+  transition: width 0.3s ease;
+  width: 300px;
+}
+
+.sidebar-container.collapsed {
+  width: 40px;
+}
+
+.sidebar-container.collapsed .sidebar {
+  transform: translateX(-100%);
+}
+
+.sidebar-container.collapsed .back-button {
+  display: none;
+}
+
+/* Chatbot container styles */
+.chatbot-container {
+  position: relative;
+  height: 100vh;
+  transition: width 0.3s ease;
+  width: 320px;
+}
+
+.chatbot-container.collapsed {
+  width: 40px;
+}
+
+.chatbot-container.collapsed .chatbot {
+  transform: translateX(100%);
+}
+
+/* Toggle buttons */
+.sidebar-toggle,
+.chatbot-toggle {
+  position: absolute;
+  width: 30px;
+  height: 40px;
+  background-color: var(--white);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1002;
+  border-radius: 0 5px 5px 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.sidebar-toggle {
+  right: 0;
+}
+
+.chatbot-toggle {
+  left: 0;
+}
+
+/* Handle resize functionality */
+.resize-handle {
+  width: 5px; 
+  height: 100%;
+  cursor: col-resize;
+  position: absolute;
+  top: 0;
+  z-index: 1010; /* Ensure it's above other elements */
+  transition: background-color 0.2s;
+}
+
+.resize-handle:hover {
+  background-color: rgba(0, 0, 0, 0.2); /* More visible on hover */
+}
+
+.sidebar-container .resize-handle {
+  right: 0;
+}
+
+.chatbot-container .resize-handle {
+  left: 0;
+}
+
+/* Add a visual indicator when resizing */
+.sidebar-container.resizing,
+.chatbot-container.resizing {
+  pointer-events: none; /* Prevent interactions during resize */
+}
+
+.sidebar-container.resizing .resize-handle,
+.chatbot-container.resizing .resize-handle {
+  background-color: rgba(255, 140, 56, 0.3); /* Highlight with primary color */
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 15px;
+}

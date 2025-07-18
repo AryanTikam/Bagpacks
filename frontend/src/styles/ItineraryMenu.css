@@ -1,0 +1,72 @@
+.itinerary-menu {
+  position: fixed;
+  z-index: 2000;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  padding: 24px;
+  min-width: 320px;
+  max-width: 400px;
+  cursor: default;
+  user-select: auto;
+}
+
+.itinerary-menu.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.itinerary-menu-header {
+  cursor: grab;
+  font-weight: 600;
+  margin: -24px -24px 16px -24px;
+  padding: 16px 24px;
+  border-radius: 12px 12px 0 0;
+  background: #f7fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.itinerary-menu-close {
+  background: none;
+  color: #888;
+  box-shadow: none;
+  font-size: 18px;
+  padding: 0 8px;
+  margin: 0;
+  border: none;
+  cursor: pointer;
+}
+
+.itinerary-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.itinerary-menu li {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.itinerary-menu-remove {
+  margin-left: 8px;
+}
+
+.itinerary-menu-generate {
+  margin-top: 16px;
+}
+
+.itinerary-menu-plan {
+  margin-top: 24px;
+}
+
+.itinerary-menu-plan-content {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  white-space: pre-line;
+}

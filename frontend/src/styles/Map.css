@@ -1,0 +1,13 @@
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--border-radius);
+}
+
+.leaflet-popup-content {
+  margin: 13px;
+  font-family: 'Poppins', sans-serif;
+}

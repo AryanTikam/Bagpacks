@@ -1,0 +1,8 @@
+flask
+flask_cors
+requests
+google
+google.generativeai
+dotenv
+reportlab
+markdown2
