@@ -33,12 +33,23 @@ def chat():
 def itinerary():
     selected_places = request.json.get("places")
     user_location = request.json.get("userLocation")
+    days = request.json.get("days")
+    budget = request.json.get("budget")
+    people = request.json.get("people")
+    # Compose personalization string
+    personalization = ""
+    if days:
+        personalization += f"For {days} days. "
+    if budget:
+        personalization += f"Budget: ₹{budget}. "
+    if people:
+        personalization += f"For {people} people. "
     if user_location:
         start_point = f"Start from user's current location: {user_location}. "
     else:
         start_point = ""
     itinerary_text = get_gemini_response(
-        f"{start_point}Create a detailed travel itinerary for: {', '.join(selected_places)}. Suggest the best order, time to spend at each, and what to do at each place. Include tips and local insights.", ""
+        f"{start_point}{personalization}Create a detailed travel itinerary for: {', '.join(selected_places)}. Suggest the best order, time to spend at each, and what to do at each place. Include tips and local insights.", ""
     )
     # Get place details (with coordinates) for map
     from utils.location import get_coordinates

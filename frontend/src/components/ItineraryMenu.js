@@ -9,10 +9,13 @@ function ItineraryMenu({
   isGenerating,
   itinerary,
   onDownload,
+  itineraryOptions,
+  setItineraryOptions,
 }) {
   const [position, setPosition] = useState({ x: window.innerWidth - 440, y: 40 });
   const [dragging, setDragging] = useState(false);
   const [rel, setRel] = useState({ x: 0, y: 0 });
+  const [showOptions, setShowOptions] = useState(false);
   const menuRef = useRef(null);
 
   const handleMouseDown = (e) => {
@@ -54,6 +57,14 @@ function ItineraryMenu({
     // eslint-disable-next-line
   }, [dragging, rel]);
 
+  // Handle form changes
+  const handleOptionChange = (e) => {
+    setItineraryOptions({
+      ...itineraryOptions,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   return (
     <div
       ref={menuRef}
@@ -63,11 +74,16 @@ function ItineraryMenu({
         top: position.y,
       }}
     >
-      <div
-        className="itinerary-menu-header"
-        onMouseDown={handleMouseDown}
-      >
+      <div className="itinerary-menu-header" onMouseDown={handleMouseDown}>
         <span>🗺️ My Itinerary</span>
+        <button
+          onClick={() => setShowOptions((v) => !v)}
+          className="itinerary-menu-close"
+          title="Personalize itinerary"
+          style={{ marginRight: 8 }}
+        >
+          <span role="img" aria-label="settings">⚙️</span>
+        </button>
         <button
           onClick={onClose}
           className="itinerary-menu-close"
@@ -75,6 +91,40 @@ function ItineraryMenu({
           ×
         </button>
       </div>
+      {showOptions && (
+        <div className="itinerary-menu-options">
+          <label>
+            Days:
+            <input
+              type="number"
+              name="days"
+              min="1"
+              value={itineraryOptions.days}
+              onChange={handleOptionChange}
+            />
+          </label>
+          <label>
+            Budget (₹):
+            <input
+              type="number"
+              name="budget"
+              min="0"
+              value={itineraryOptions.budget}
+              onChange={handleOptionChange}
+            />
+          </label>
+          <label>
+            People:
+            <input
+              type="number"
+              name="people"
+              min="1"
+              value={itineraryOptions.people}
+              onChange={handleOptionChange}
+            />
+          </label>
+        </div>
+      )}
       <ul>
         {places.map((p, i) => (
           <li key={i}>

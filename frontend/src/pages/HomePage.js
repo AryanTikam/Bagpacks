@@ -57,7 +57,6 @@ function HomePage({ onSearch }) {
           <h1 className="hero-title">
             Explore India with 
             <span className="brand-name"> Bagpack </span>
-            <span className="emoji">🧳</span>
           </h1>
           <p className="hero-subtitle">
             Discover hidden gems, plan your perfect journey, and create unforgettable memories

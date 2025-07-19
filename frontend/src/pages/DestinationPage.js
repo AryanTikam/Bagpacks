@@ -19,6 +19,11 @@ function DestinationPage({ destination, onBack }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [itinerary, setItinerary] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [itineraryOptions, setItineraryOptions] = useState({
+    days: 3,
+    budget: 10000,
+    people: 2,
+  });
   
   // Reference to sidebar and chatbot containers for updating width
   const sidebarContainerRef = useRef(null);
@@ -115,7 +120,8 @@ function DestinationPage({ destination, onBack }) {
     try {
       const res = await axios.post("/api/itinerary", {
         places: itineraryPlaces.map((p) => p.name),
-        userLocation: userLocation // <-- add this
+        userLocation: userLocation,
+        ...itineraryOptions
       });
       setItinerary({ text: res.data.reply || "Itinerary generated!", pdf: null });
     } catch (e) {
@@ -128,7 +134,8 @@ function DestinationPage({ destination, onBack }) {
     try {
       const res = await axios.post("/api/itinerary", {
         places: itineraryPlaces.map((p) => p.name),
-        userLocation: userLocation // <-- add this
+        userLocation: userLocation,
+        ...itineraryOptions
       }, { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
@@ -216,6 +223,8 @@ function DestinationPage({ destination, onBack }) {
           isGenerating={isGenerating}
           itinerary={itinerary}
           onDownload={handleDownloadItinerary}
+          itineraryOptions={itineraryOptions}
+          setItineraryOptions={setItineraryOptions}
         />
       )}
     </div>

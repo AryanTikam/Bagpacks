@@ -4,9 +4,16 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import inch
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 import markdown2
 import requests
 from PIL import Image as PILImage
+import os
+
+# Register Unicode font
+FONT_PATH = os.path.join(os.path.dirname(__file__), "fonts", "DejaVuSans.ttf")
+pdfmetrics.registerFont(TTFont("DejaVuSans", FONT_PATH))
 
 def fetch_static_map(places, width=600, height=350):
     marker_strs = []
@@ -30,7 +37,10 @@ def create_itinerary_pdf(markdown_text, places=None):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading1'], alignment=TA_CENTER))
+    # Use DejaVuSans for all styles
+    for style_name in styles.byName:
+        styles[style_name].fontName = "DejaVuSans"
+    styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading1'], alignment=TA_CENTER, fontName="DejaVuSans"))
     story = []
 
     story.append(Paragraph("🗺️ Your Bagpack Itinerary", styles['CenterTitle']))
