@@ -8,7 +8,7 @@ function Chatbot({ location, onResize, userLocation }) {
   const [messages, setMessages] = useState([
     { 
       sender: "bot", 
-      text: `# Welcome to ${location}! 👋\n\nI'm your BagpackBot guide. Ask me anything about:\n- Places to visit\n- Local transportation\n- Food recommendations\n- Weather & best time to visit`
+      text: `# Welcome to ${location}\n\nI'm your BagpackBot travel assistant. I can help you with:\n\n- Places to visit and attractions\n- Local transportation options\n- Restaurant and food recommendations\n- Weather information and best travel times\n- Cultural insights and local tips\n\nFeel free to ask me anything about your destination!`
     }
   ]);
   const [input, setInput] = useState("");
@@ -106,7 +106,7 @@ function Chatbot({ location, onResize, userLocation }) {
     <>
       <div ref={resizeHandleRef} className="resize-handle"></div>
       <div ref={chatbotRef} className="chatbot">
-        <h2>Ask BagpackBot 🗺️</h2>
+        <h2>Travel Assistant</h2>
         <div className="chat-log" ref={chatLogRef}>
           {messages.map((msg, i) => (
             <div key={i} className={`message ${msg.sender}`}>
@@ -134,10 +134,13 @@ function Chatbot({ location, onResize, userLocation }) {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about places, food, routes..."
+            placeholder="Ask about places, food, transportation..."
             onKeyPress={handleKeyPress}
+            disabled={isLoading}
           />
-          <button onClick={sendMessage}>Send</button>
+          <button onClick={sendMessage} disabled={isLoading}>
+            {isLoading ? "..." : "Send"}
+          </button>
         </div>
       </div>
     </>

@@ -9,6 +9,7 @@ function ItineraryMenu({
   isGenerating,
   itinerary,
   onDownload,
+  onViewItinerary,
   itineraryOptions,
   setItineraryOptions,
 }) {
@@ -65,6 +66,11 @@ function ItineraryMenu({
     });
   };
 
+  // Handle download with format selection
+  const handleDownload = (format) => {
+    onDownload(format);
+  };
+
   return (
     <div
       ref={menuRef}
@@ -75,14 +81,17 @@ function ItineraryMenu({
       }}
     >
       <div className="itinerary-menu-header" onMouseDown={handleMouseDown}>
-        <span>🗺️ My Itinerary</span>
+        <span>My Itinerary</span>
         <button
           onClick={() => setShowOptions((v) => !v)}
           className="itinerary-menu-close"
           title="Personalize itinerary"
           style={{ marginRight: 8 }}
         >
-          <span role="img" aria-label="settings">⚙️</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="2"/>
+          </svg>
         </button>
         <button
           onClick={onClose}
@@ -133,7 +142,10 @@ function ItineraryMenu({
               onClick={() => onRemove(p)}
               className="itinerary-menu-remove"
             >
-              ❌
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2"/>
+                <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2"/>
+              </svg>
             </button>
           </li>
         ))}
@@ -145,11 +157,37 @@ function ItineraryMenu({
       </div>
       {itinerary && (
         <div className="itinerary-menu-plan">
-          <h3>Suggested Plan</h3>
-          <div className="itinerary-menu-plan-content">
-            {itinerary.text}
+          <h3>Itinerary Generated!</h3>
+          <p>Your personalized travel itinerary is ready.</p>
+          <div className="itinerary-actions">
+            <button onClick={onViewItinerary} className="view-button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              View Itinerary
+            </button>
+            <div className="download-buttons">
+              <button onClick={() => handleDownload('docx')} className="download-button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
+                  <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                DOCX
+              </button>
+              <button onClick={() => handleDownload('pdf')} className="download-button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
+                  <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                PDF
+              </button>
+            </div>
           </div>
-          <button onClick={onDownload}>Download PDF</button>
         </div>
       )}
     </div>

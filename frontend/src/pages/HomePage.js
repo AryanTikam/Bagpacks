@@ -1,8 +1,9 @@
 // --- src/pages/HomePage.js ---
 import React, { useState } from "react";
+import Navigation from "../components/Navigation";
 import "../styles/HomePage.css";
 
-function HomePage({ onSearch }) {
+function HomePage({ onSearch, onViewAdventure }) {
   const [input, setInput] = useState("");
 
   const handleSearch = () => {
@@ -15,7 +16,6 @@ function HomePage({ onSearch }) {
     }
   };
 
-  // Enhanced destinations with more variety
   const destinations = [
     { 
       name: "Manali", 
@@ -29,7 +29,7 @@ function HomePage({ onSearch }) {
     },
     { 
       name: "Varanasi", 
-      image: "https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=400&h=300&fit=crop",
+      image: "https://images.unsplash.com/photo-1508672019048-805c876b67e2?w=400&h=300&fit=crop",
       description: "Ancient spiritual city on the Ganges"
     },
     { 
@@ -39,7 +39,7 @@ function HomePage({ onSearch }) {
     },
     { 
       name: "Jaipur", 
-      image: "https://images.unsplash.com/photo-1599661046827-dacde69022dd?w=400&h=300&fit=crop",
+      image: "/jaipur.jpg",
       description: "Pink city with royal heritage"
     },
     { 
@@ -51,12 +51,18 @@ function HomePage({ onSearch }) {
 
   return (
     <div className="homepage">
+      <Navigation 
+        onHomeClick={() => {}}
+        showBackButton={false}
+        currentPage="home"
+        onViewAdventure={onViewAdventure}
+      />
+      
       {/* Hero Section */}
       <div className="hero-section">
         <div className="hero-content">
           <h1 className="hero-title">
-            Explore India with 
-            <span className="brand-name"> Bagpack </span>
+            Explore India with <span className="brand-name">Bagpack</span>
           </h1>
           <p className="hero-subtitle">
             Discover hidden gems, plan your perfect journey, and create unforgettable memories
@@ -74,7 +80,10 @@ function HomePage({ onSearch }) {
                 className="search-input"
               />
               <button onClick={handleSearch} className="search-button">
-                <span>🔍</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
+                  <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2"/>
+                </svg>
                 Search
               </button>
             </div>
@@ -115,19 +124,38 @@ function HomePage({ onSearch }) {
 
       {/* Features Section */}
       <div className="features-section">
+        <div className="section-header">
+          <h2>Why Choose Bagpack?</h2>
+          <p>Everything you need for the perfect trip</p>
+        </div>
         <div className="features-grid">
           <div className="feature-card">
-            <div className="feature-icon">🗺️</div>
+            <div className="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="2"/>
+                <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </div>
             <h3>Interactive Maps</h3>
             <p>Explore destinations with detailed maps and location insights</p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">🤖</div>
+            <div className="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </div>
             <h3>AI Travel Assistant</h3>
             <p>Get personalized recommendations from our smart chatbot</p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">📍</div>
+            <div className="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 6h18l-2 13H5L3 6zM3 6l-1-3h3" stroke="currentColor" strokeWidth="2"/>
+                <path d="M16 10a4 4 0 0 1-8 0" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </div>
             <h3>Local Insights</h3>
             <p>Discover hidden gems and local favorites at every destination</p>
           </div>
