@@ -13,6 +13,7 @@ function Chatbot({ location, onResize, userLocation }) {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const chatLogRef = useRef(null);
   const chatbotRef = useRef(null);
   const resizeHandleRef = useRef(null);
@@ -41,9 +42,9 @@ function Chatbot({ location, onResize, userLocation }) {
     }
     
     function resize(e) {
-      if (!startX) return;
+      if (!startX || isFullscreen) return;
       const delta = e.clientX - startX;
-      const newWidth = startWidth - delta; // For right sidebar, decrease width as mouse moves right
+      const newWidth = startWidth - delta;
       if (newWidth > 250 && newWidth < 600) {
         parentContainer.style.width = `${newWidth}px`;
         if (onResize) onResize(newWidth);
@@ -58,7 +59,7 @@ function Chatbot({ location, onResize, userLocation }) {
       startX = null;
     }
     
-    if (resizeHandle) {
+    if (resizeHandle && !isFullscreen) {
       resizeHandle.addEventListener('mousedown', startResize);
     }
     
@@ -69,7 +70,7 @@ function Chatbot({ location, onResize, userLocation }) {
       document.removeEventListener('mousemove', resize);
       document.removeEventListener('mouseup', stopResize);
     };
-  }, [onResize]);
+  }, [onResize, isFullscreen]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -80,7 +81,7 @@ function Chatbot({ location, onResize, userLocation }) {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("/api/chat", { 
+      const response = await axios.post("http://localhost:5000/api/chat", { 
         message: input, 
         location,
         userLocation 
@@ -102,45 +103,67 @@ function Chatbot({ location, onResize, userLocation }) {
     }
   };
 
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   return (
     <>
-      <div ref={resizeHandleRef} className="resize-handle"></div>
-      <div ref={chatbotRef} className="chatbot">
-        <h2>Travel Assistant</h2>
-        <div className="chat-log" ref={chatLogRef}>
-          {messages.map((msg, i) => (
-            <div key={i} className={`message ${msg.sender}`}>
-              {msg.sender === "bot" ? (
-                <div className="markdown-content">
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
-                </div>
-              ) : (
-                msg.text
-              )}
-            </div>
-          ))}
-          {isLoading && (
-            <div className="message bot">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          )}
+      {!isFullscreen && <div ref={resizeHandleRef} className="resize-handle"></div>}
+      <div 
+        ref={chatbotRef} 
+        className={`chatbot ${isFullscreen ? 'fullscreen' : ''}`}
+      >
+        <div className="chatbot-header">
+          <h2>Travel Assistant</h2>
+          <div className="chatbot-controls">
+            <button 
+              className="control-btn" 
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? "⤓" : "⤢"}
+            </button>
+          </div>
         </div>
-        <div className="chat-input-container">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about places, food, transportation..."
-            onKeyPress={handleKeyPress}
-            disabled={isLoading}
-          />
-          <button onClick={sendMessage} disabled={isLoading}>
-            {isLoading ? "..." : "Send"}
-          </button>
+        
+        <div className="chat-container">
+          <div className="chat-log" ref={chatLogRef}>
+            {messages.map((msg, i) => (
+              <div key={i} className={`message ${msg.sender}`}>
+                {msg.sender === "bot" ? (
+                  <div className="markdown-content">
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.text
+                )}
+              </div>
+            ))}
+            {isLoading && (
+              <div className="message bot">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="chat-input-container">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about places, food, transportation..."
+              onKeyPress={handleKeyPress}
+              disabled={isLoading}
+            />
+            <button onClick={sendMessage} disabled={isLoading}>
+              {isLoading ? "..." : "Send"}
+            </button>
+          </div>
         </div>
       </div>
     </>

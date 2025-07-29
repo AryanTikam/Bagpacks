@@ -62,8 +62,12 @@ function Sidebar({ places, onResize, onAddToItinerary }) {
               <h3>{p.name}</h3>
               {p.type && <p>{p.type}</p>}
               {onAddToItinerary && (
-                <button onClick={() => onAddToItinerary(p)} style={{marginTop: 8}}>
-                  ➕ Add to Itinerary
+                <button 
+                  className="add-to-itinerary-btn"
+                  onClick={() => onAddToItinerary(p)}
+                >
+                  <span className="icon">✨</span>
+                  Add to Itinerary
                 </button>
               )}
             </li>
