@@ -19,17 +19,17 @@ function HomePage({ onSearch, onViewAdventure }) {
   const destinations = [
     { 
       name: "Manali", 
-      image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop",
+      image: "/Manali.jpg",
       description: "Mountain paradise with snow-capped peaks"
     },
     { 
       name: "Goa", 
-      image: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=400&h=300&fit=crop",
+      image: "/Goa.jpg",
       description: "Golden beaches and vibrant nightlife"
     },
     { 
       name: "Varanasi", 
-      image: "https://images.unsplash.com/photo-1508672019048-805c876b67e2?w=400&h=300&fit=crop",
+      image: "/Varanasi.webp",
       description: "Ancient spiritual city on the Ganges"
     },
     { 
@@ -39,12 +39,12 @@ function HomePage({ onSearch, onViewAdventure }) {
     },
     { 
       name: "Jaipur", 
-      image: "/jaipur.jpg",
+      image: "/Jaipur.jpg",
       description: "Pink city with royal heritage"
     },
     { 
       name: "Udaipur", 
-      image: "https://images.unsplash.com/photo-1609920658906-8223bd289001?w=400&h=300&fit=crop",
+      image: "/Udaipur.jpg",
       description: "City of lakes and palaces"
     }
   ];
