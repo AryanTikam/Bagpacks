@@ -11,9 +11,36 @@ function ItineraryViewPage({
   onBack, 
   onDownload, 
   destination,
-  onViewAdventure 
+  onViewAdventure,
+  onViewCommunity
 }) {
   const [showTemplateSelection, setShowTemplateSelection] = useState(false);
+
+  // Handle case where itinerary might be undefined
+  if (!itinerary || !itinerary.text) {
+    return (
+      <div className="itinerary-view-container">
+        <Navigation 
+          onHomeClick={onBack}
+          showBackButton={true}
+          onBackClick={onBack}
+          currentPage="itinerary"
+          onViewAdventure={onViewAdventure}
+          onViewCommunity={onViewCommunity}
+        />
+        
+        <div className="itinerary-view-content">
+          <div className="error-container">
+            <h2>Itinerary Not Available</h2>
+            <p>The itinerary for this adventure is not available or could not be loaded.</p>
+            <button onClick={onBack} className="back-button">
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleDownloadClick = () => {
     setShowTemplateSelection(true);
@@ -51,6 +78,7 @@ function ItineraryViewPage({
         itineraryOptions={itineraryOptions}
         destination={destination}
         onViewAdventure={onViewAdventure}
+        onViewCommunity={onViewCommunity} 
       />
     );
   }
@@ -78,6 +106,7 @@ function ItineraryViewPage({
         onBackClick={onBack}
         currentPage="itinerary"
         onViewAdventure={onViewAdventure}
+        onViewCommunity={onViewCommunity}
       />
       
       <div className="itinerary-view-content">
@@ -92,21 +121,21 @@ function ItineraryViewPage({
                   <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
                   <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                {itineraryOptions.days} {itineraryOptions.days === 1 ? 'Day' : 'Days'}
+                {itineraryOptions?.days || 3} {(itineraryOptions?.days || 3) === 1 ? 'Day' : 'Days'}
               </span>
               <span className="meta-item">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2"/>
                   <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                {itineraryOptions.people} {itineraryOptions.people === 1 ? 'Person' : 'People'}
+                {itineraryOptions?.people || 2} {(itineraryOptions?.people || 2) === 1 ? 'Person' : 'People'}
               </span>
               <span className="meta-item">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" strokeWidth="2"/>
                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                ₹{itineraryOptions.budget}
+                ₹{itineraryOptions?.budget || 10000}
               </span>
               <span className="meta-item">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -127,17 +156,19 @@ function ItineraryViewPage({
           </div>
         </div>
 
-        <div className="itinerary-places">
-          <h2>Places to Visit</h2>
-          <div className="places-grid">
-            {places.map((place, index) => (
-              <div key={index} className="place-card">
-                <span className="place-number">{index + 1}</span>
-                <span className="place-name">{place.name}</span>
-              </div>
-            ))}
+        {places && places.length > 0 && (
+          <div className="itinerary-places">
+            <h2>Places to Visit</h2>
+            <div className="places-grid">
+              {places.map((place, index) => (
+                <div key={index} className="place-card">
+                  <span className="place-number">{index + 1}</span>
+                  <span className="place-name">{place.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="itinerary-content">
           <h2>Detailed Itinerary</h2>

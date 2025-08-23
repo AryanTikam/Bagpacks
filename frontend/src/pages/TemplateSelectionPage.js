@@ -9,7 +9,8 @@ function TemplateSelectionPage({
   places, 
   itineraryOptions, 
   destination,
-  onViewAdventure 
+  onViewAdventure,
+  onViewCommunity 
 }) {
   const [selectedTemplate, setSelectedTemplate] = useState('modern');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -73,6 +74,7 @@ function TemplateSelectionPage({
         onBackClick={onBack}
         currentPage="template"
         onViewAdventure={onViewAdventure}
+        onViewCommunity={onViewCommunity} // Add this line
       />
       
       <div className="template-selection-content">

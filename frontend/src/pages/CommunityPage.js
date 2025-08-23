@@ -53,6 +53,12 @@ const CommunityPage = ({ onBack, onViewAdventure }) => {
     fetchPosts(1);
   }, [fetchPosts]);
 
+  // Add a method to refresh posts without losing state
+  const handleRefresh = () => {
+    setLoading(true);
+    fetchPosts(1, true);
+  };
+
   const handleCreatePost = (newPost) => {
     setPosts(prev => [newPost, ...prev]);
     setShowCreateModal(false);
@@ -116,6 +122,16 @@ const CommunityPage = ({ onBack, onViewAdventure }) => {
     return false;
   };
 
+  const handleDeletePost = (postId) => {
+    setPosts(prev => prev.filter(post => post._id !== postId));
+  };
+
+  const handleUpdatePost = (updatedPost) => {
+    setPosts(prev => prev.map(post => 
+      post._id === updatedPost._id ? updatedPost : post
+    ));
+  };
+
   if (loading && posts.length === 0) {
     return (
       <div className="community-container">
@@ -142,6 +158,7 @@ const CommunityPage = ({ onBack, onViewAdventure }) => {
         onBackClick={onBack}
         currentPage="community"
         onViewAdventure={onViewAdventure}
+        onViewCommunity={() => {}} // Empty function since we're already on community
       />
       
       <div className="community-content">
@@ -175,7 +192,7 @@ const CommunityPage = ({ onBack, onViewAdventure }) => {
           <div className="error-message">
             {error}
             <button 
-              onClick={() => window.location.reload()} 
+              onClick={handleRefresh} // Use handleRefresh instead of window.location.reload
               style={{ marginLeft: '1rem', padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
             >
               Retry
@@ -206,6 +223,8 @@ const CommunityPage = ({ onBack, onViewAdventure }) => {
                   onLike={handleLikePost}
                   onAddComment={handleAddComment}
                   onViewAdventure={onViewAdventure}
+                  onDeletePost={handleDeletePost}
+                  onUpdatePost={handleUpdatePost}
                 />
               ))}
               

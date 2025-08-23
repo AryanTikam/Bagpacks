@@ -1,5 +1,5 @@
 // --- Frontend Entry Point: src/App.js ---
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import DestinationPage from "./pages/DestinationPage";
 import HomePage from "./pages/HomePage";
@@ -12,14 +12,69 @@ import "./styles/globals.css";
 function AppContent() {
   const [destination, setDestination] = useState("");
   const [viewingAdventure, setViewingAdventure] = useState(null);
-  const [currentPage, setCurrentPage] = useState("home"); // home, community, destination, adventure
+  const [currentPage, setCurrentPage] = useState("home");
   const { user, loading } = useAuth();
+
+  // Save state to localStorage
+  useEffect(() => {
+    const state = {
+      currentPage,
+      destination,
+      viewingAdventure: viewingAdventure ? viewingAdventure._id : null
+    };
+    localStorage.setItem('appState', JSON.stringify(state));
+  }, [currentPage, destination, viewingAdventure]);
 
   const handleBack = () => {
     setDestination("");
     setViewingAdventure(null);
     setCurrentPage("home");
+    localStorage.removeItem('appState');
   };
+
+  // Use useCallback to memoize fetchAdventure function
+  const fetchAdventure = useCallback(async (adventureId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${getApiUrl('node')}/api/adventures/${adventureId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const adventure = await response.json();
+        setViewingAdventure(adventure);
+      }
+    } catch (error) {
+      console.error('Error fetching adventure:', error);
+      // If we can't fetch the adventure, go back to home
+      handleBack();
+    }
+  }, []);
+
+  // Restore state from localStorage on mount
+  useEffect(() => {
+    if (user) {
+      const savedState = localStorage.getItem('appState');
+      if (savedState) {
+        try {
+          const state = JSON.parse(savedState);
+          if (state.currentPage && state.currentPage !== 'home') {
+            setCurrentPage(state.currentPage);
+            if (state.destination) {
+              setDestination(state.destination);
+            }
+            if (state.viewingAdventure) {
+              // Fetch the adventure from the server
+              fetchAdventure(state.viewingAdventure);
+            }
+          }
+        } catch (error) {
+          console.error('Error restoring app state:', error);
+        }
+      }
+    }
+  }, [user, fetchAdventure]); // Add fetchAdventure to dependencies
 
   const handleViewAdventure = (adventure) => {
     setDestination("");
@@ -118,6 +173,7 @@ function AppContent() {
         onDownload={handleDownloadAdventure}
         destination={viewingAdventure.destination}
         onViewAdventure={handleViewAdventure}
+        onViewCommunity={handleViewCommunity} 
       />
     );
   }

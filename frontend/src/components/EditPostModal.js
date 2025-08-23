@@ -2,40 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../config/api';
 import '../styles/CreatePostModal.css';
 
-const CreatePostModal = ({ onClose, onCreatePost }) => {
+const EditPostModal = ({ post, onClose, onUpdate }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    story: '',
-    adventureId: '',
-    tags: '',
-    media: []
+    title: post.title || '',
+    story: post.story || '',
+    tags: post.tags ? post.tags.join(', ') : ''
   });
-  const [adventures, setAdventures] = useState([]);
-  const [mediaUrls, setMediaUrls] = useState(['']);
+  const [mediaUrls, setMediaUrls] = useState(
+    post.media ? post.media.map(m => m.url) : ['']
+  );
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    fetchAdventures();
-  }, []);
-
-  const fetchAdventures = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${getApiUrl('node')}/api/adventures`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAdventures(data);
-      }
-    } catch (err) {
-      console.error('Error fetching adventures:', err);
-    }
-  };
 
   const handleChange = (e) => {
     setFormData({
@@ -44,10 +21,7 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
     });
     
     if (errors[e.target.name]) {
-      setErrors({
-        ...errors,
-        [e.target.name]: ''
-      });
+      setErrors({ ...errors, [e.target.name]: '' });
     }
   };
 
@@ -69,10 +43,8 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
   const detectMediaType = (url) => {
     if (!url) return null;
     
-    // Remove any query parameters for better detection
     const cleanUrl = url.split('?')[0].toLowerCase();
     
-    // Video detection
     if (url.includes('youtube.com/watch') || 
         url.includes('youtu.be/') || 
         url.includes('vimeo.com/') ||
@@ -83,26 +55,12 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
       return 'video';
     }
     
-    // GIF detection
     if (url.includes('giphy.com') || 
         url.includes('tenor.com') || 
         cleanUrl.endsWith('.gif')) {
       return 'gif';
     }
     
-    // Image detection (default)
-    if (url.includes('imgur.com') || 
-        url.includes('instagram.com') ||
-        url.includes('unsplash.com') ||
-        cleanUrl.endsWith('.jpg') || 
-        cleanUrl.endsWith('.jpeg') ||
-        cleanUrl.endsWith('.png') || 
-        cleanUrl.endsWith('.webp') ||
-        cleanUrl.endsWith('.svg')) {
-      return 'image';
-    }
-    
-    // Default to image for any other URL
     return 'image';
   };
 
@@ -135,27 +93,25 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
     try {
       const token = localStorage.getItem('token');
       
-      // Process media URLs
       const processedMedia = mediaUrls
-        .filter(url => url.trim()) // Remove empty URLs
+        .filter(url => url.trim())
         .map(url => ({
           type: detectMediaType(url),
           url: url.trim(),
-          caption: '' // You can add caption functionality later
+          caption: ''
         }));
 
       const postData = {
         title: formData.title,
         story: formData.story,
-        adventureId: formData.adventureId || null,
         media: processedMedia,
         tags: formData.tags 
           ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag).slice(0, 10)
           : []
       };
 
-      const response = await fetch(`${getApiUrl('node')}/api/community`, {
-        method: 'POST',
+      const response = await fetch(`${getApiUrl('node')}/api/community/${post._id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -164,15 +120,14 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
       });
 
       if (response.ok) {
-        const newPost = await response.json();
-        onCreatePost(newPost);
-        onClose();
+        const updatedPost = await response.json();
+        onUpdate(updatedPost);
       } else {
         const errorData = await response.json();
-        setErrors({ general: errorData.message || 'Failed to create post' });
+        setErrors({ general: errorData.message || 'Failed to update post' });
       }
     } catch (err) {
-      console.error('Error creating post:', err);
+      console.error('Error updating post:', err);
       setErrors({ general: 'Network error. Please try again.' });
     } finally {
       setLoading(false);
@@ -183,7 +138,7 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
     <div className="create-post-modal">
       <div className="modal-content">
         <div className="modal-header">
-          <h2>Share Your Adventure Story</h2>
+          <h2>Edit Your Story</h2>
           <button onClick={onClose} className="close-button">×</button>
         </div>
 
@@ -217,30 +172,13 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
               name="story"
               value={formData.story}
               onChange={handleChange}
-              placeholder="Tell us about your adventure... What made it special? What did you discover? Any tips for fellow travelers?"
+              placeholder="Tell us about your adventure..."
               rows={8}
               maxLength={5000}
               className={errors.story ? 'error' : ''}
             />
             {errors.story && <span className="error-message">{errors.story}</span>}
             <small className="char-count">{formData.story.length}/5000</small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="adventureId">Link Itinerary (Optional)</label>
-            <select
-              id="adventureId"
-              name="adventureId"
-              value={formData.adventureId}
-              onChange={handleChange}
-            >
-              <option value="">Choose an itinerary to share...</option>
-              {adventures.map((adventure) => (
-                <option key={adventure._id} value={adventure._id}>
-                  {adventure.destination} - {new Date(adventure.createdAt).toLocaleDateString()}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="form-group">
@@ -300,10 +238,10 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
                   <div className="loading-spinner-small">
                     <div className="spinner-small"></div>
                   </div>
-                  Sharing...
+                  Updating...
                 </>
               ) : (
-                'Share Story'
+                'Update Story'
               )}
             </button>
           </div>
@@ -313,4 +251,4 @@ const CreatePostModal = ({ onClose, onCreatePost }) => {
   );
 };
 
-export default CreatePostModal;
+export default EditPostModal;
