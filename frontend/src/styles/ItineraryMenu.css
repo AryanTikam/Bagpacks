@@ -16,6 +16,8 @@
 .itinerary-menu.dragging {
   cursor: grabbing;
   user-select: none;
+  box-shadow: var(--shadow-xl);
+  transform: scale(1.02);
 }
 
 .itinerary-menu-header {
@@ -30,6 +32,13 @@
   align-items: center;
   justify-content: space-between;
   color: var(--text-primary);
+  transition: var(--transition);
+}
+
+.itinerary-menu.dragging .itinerary-menu-header {
+  cursor: grabbing;
+  background: var(--primary);
+  color: white;
 }
 
 .itinerary-menu-close {
@@ -189,26 +198,65 @@
   background: var(--primary-dark);
 }
 
-.download-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.download-button {
-  flex: 1;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-sm);
+/* Updated download button - only for PDF now */
+.pdf-download {
+  background: var(--danger);
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
-  font-size: 0.75rem;
-  box-shadow: none;
+  font-size: 0.875rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
-.download-button:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--border-color-hover);
+.pdf-download:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+/* Small loading spinner for buttons */
+.loading-spinner-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+.spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-left: 2px solid white;
+  border-radius: 50%;
+  animation: spin-small 0.8s linear infinite;
+}
+
+@keyframes spin-small {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Enhanced button disabled states */
+.itinerary-menu-generate button:disabled,
+.pdf-download:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.pdf-download:disabled {
+  background: #ef4444;
+  transform: none;
+}
+
+.pdf-download:disabled:hover {
+  background: #ef4444;
+  transform: none;
 }

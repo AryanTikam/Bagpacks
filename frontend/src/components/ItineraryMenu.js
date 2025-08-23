@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import "../styles/ItineraryMenu.css";
 
 function ItineraryMenu({
@@ -15,48 +15,58 @@ function ItineraryMenu({
 }) {
   const [position, setPosition] = useState({ x: window.innerWidth - 440, y: 40 });
   const [dragging, setDragging] = useState(false);
-  const [rel, setRel] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showOptions, setShowOptions] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const menuRef = useRef(null);
 
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
+    
     const rect = menuRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+    
     setDragging(true);
-    setRel({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    setDragOffset({ x: offsetX, y: offsetY });
     document.body.style.userSelect = "none";
+    document.body.style.cursor = "grabbing";
+    
+    e.preventDefault();
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     if (!dragging) return;
-    setPosition({
-      x: Math.min(Math.max(e.clientX - rel.x, 0), window.innerWidth - 400),
-      y: Math.min(Math.max(e.clientY - rel.y, 0), window.innerHeight - 100),
-    });
-  };
+    
+    const newX = Math.min(
+      Math.max(e.clientX - dragOffset.x, 0), 
+      window.innerWidth - 400
+    );
+    const newY = Math.min(
+      Math.max(e.clientY - dragOffset.y, 0), 
+      window.innerHeight - 100
+    );
+    
+    setPosition({ x: newX, y: newY });
+  }, [dragging, dragOffset.x, dragOffset.y]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setDragging(false);
     document.body.style.userSelect = "";
-  };
+    document.body.style.cursor = "";
+  }, []);
 
   React.useEffect(() => {
     if (dragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-    } else {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
     }
+    
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
-    // eslint-disable-next-line
-  }, [dragging, rel]);
+  }, [dragging, handleMouseMove, handleMouseUp]);
 
   // Handle form changes
   const handleOptionChange = (e) => {
@@ -66,9 +76,17 @@ function ItineraryMenu({
     });
   };
 
-  // Handle download with format selection
-  const handleDownload = (format) => {
-    onDownload(format);
+  // Handle download - Only PDF now
+  const handleDownload = async () => {
+    setDownloadingPdf(true);
+    try {
+      await onDownload('pdf');
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("Failed to download PDF. Please try again.");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   return (
@@ -100,6 +118,8 @@ function ItineraryMenu({
           ×
         </button>
       </div>
+      
+      {/* Options section - now using the showOptions state properly */}
       {showOptions && (
         <div className="itinerary-menu-options">
           <label>
@@ -108,6 +128,7 @@ function ItineraryMenu({
               type="number"
               name="days"
               min="1"
+              max="30"
               value={itineraryOptions.days}
               onChange={handleOptionChange}
             />
@@ -118,6 +139,7 @@ function ItineraryMenu({
               type="number"
               name="budget"
               min="0"
+              step="1000"
               value={itineraryOptions.budget}
               onChange={handleOptionChange}
             />
@@ -128,12 +150,14 @@ function ItineraryMenu({
               type="number"
               name="people"
               min="1"
+              max="20"
               value={itineraryOptions.people}
               onChange={handleOptionChange}
             />
           </label>
         </div>
       )}
+      
       <ul>
         {places.map((p, i) => (
           <li key={i}>
@@ -150,11 +174,22 @@ function ItineraryMenu({
           </li>
         ))}
       </ul>
+      
       <div className="itinerary-menu-generate">
         <button onClick={onGenerate} disabled={isGenerating || places.length < 2}>
-          {isGenerating ? "Generating..." : "Generate Itinerary"}
+          {isGenerating ? (
+            <>
+              <div className="loading-spinner-small">
+                <div className="spinner-small"></div>
+              </div>
+              Generating...
+            </>
+          ) : (
+            "Generate Itinerary"
+          )}
         </button>
       </div>
+      
       {itinerary && (
         <div className="itinerary-menu-plan">
           <h3>Itinerary Generated!</h3>
@@ -167,26 +202,31 @@ function ItineraryMenu({
               </svg>
               View Itinerary
             </button>
-            <div className="download-buttons">
-              <button onClick={() => handleDownload('docx')} className="download-button">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
-                  <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-                DOCX
-              </button>
-              <button onClick={() => handleDownload('pdf')} className="download-button">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
-                  <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-                PDF
-              </button>
-            </div>
+            
+            {/* Only PDF download button - DOCX removed */}
+            <button 
+              onClick={handleDownload} 
+              className="download-button pdf-download"
+              disabled={downloadingPdf}
+            >
+              {downloadingPdf ? (
+                <>
+                  <div className="loading-spinner-small">
+                    <div className="spinner-small"></div>
+                  </div>
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2"/>
+                    <polyline points="7,10 12,15 17,10" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Download PDF
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ import json
 import io
 import os
 from utils.gemini_chat import get_gemini_response
-from utils.itinerary import create_itinerary_pdf, create_itinerary_docx
+from utils.itinerary import create_itinerary_pdf
 from utils.location import get_place_details
 
 app = Flask(__name__)
@@ -40,7 +40,11 @@ def itinerary():
     days = request.json.get("days")
     budget = request.json.get("budget")
     people = request.json.get("people")
-    format_type = request.json.get("format", "pdf")
+    format_type = request.json.get("format", "pdf")  # Only PDF is supported now
+    
+    # Force PDF format since DOCX is removed
+    if format_type != "pdf":
+        format_type = "pdf"
     
     personalization = ""
     if days:
@@ -90,15 +94,19 @@ def itinerary():
             print(f"Failed to save adventure: {e}")
             pass  # Continue even if saving fails
     
+    # Handle preview request
     if request.args.get("preview") == "1":
         return jsonify({"reply": itinerary_text})
     
-    if format_type == "docx":
-        doc_buffer = create_itinerary_docx(itinerary_text, places=places_with_coords, options=options)
-        return send_file(doc_buffer, as_attachment=True, download_name="itinerary.docx")
-    else:
-        pdf_buffer = create_itinerary_pdf(itinerary_text, places=places_with_coords)
-        return send_file(pdf_buffer, as_attachment=True, download_name="itinerary.pdf")
+    # Generate PDF with LaTeX
+    from utils.itinerary import create_itinerary_pdf
+    pdf_buffer = create_itinerary_pdf(itinerary_text, places=places_with_coords, options=options)
+    return send_file(
+        pdf_buffer, 
+        as_attachment=True, 
+        download_name="itinerary.pdf",
+        mimetype="application/pdf"
+    )
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

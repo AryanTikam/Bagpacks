@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Navigation from "../components/Navigation";
 import ReactMarkdown from "react-markdown";
 import "../styles/ItineraryViewPage.css";
@@ -12,8 +12,18 @@ function ItineraryViewPage({
   destination,
   onViewAdventure 
 }) {
-  const handleDownload = (format) => {
-    onDownload(format);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloadingPdf(true);
+    try {
+      await onDownload("pdf");
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("Failed to download PDF. Please try again.");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const formatDate = (daysFromNow) => {
@@ -26,6 +36,33 @@ function ItineraryViewPage({
       day: 'numeric'
     });
   };
+
+  // Enhanced download button component with single spinner
+  const DownloadButton = ({ onClick, isLoading, children }) => (
+    <button 
+      onClick={onClick} 
+      className="action-button pdf"
+      disabled={isLoading}
+    >
+      {isLoading ? (
+        <>
+          <div className="loading-spinner-inline">
+            <div className="spinner-inline"></div>
+          </div>
+          <span>Generating PDF...</span>
+        </>
+      ) : (
+        <>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2"/>
+            <polyline points="7,10 12,15 17,10" stroke="currentColor" strokeWidth="2"/>
+            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          {children}
+        </>
+      )}
+    </button>
+  );
 
   return (
     <div className="itinerary-view-container">
@@ -78,26 +115,12 @@ function ItineraryViewPage({
           </div>
           
           <div className="itinerary-actions">
-            <button onClick={() => handleDownload('docx')} className="action-button docx">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
-                <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
-                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
-                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
-                <polyline points="10,9 9,9 8,9" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              Download DOCX
-            </button>
-            <button onClick={() => handleDownload('pdf')} className="action-button pdf">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
-                <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
-                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
-                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
-                <polyline points="10,9 9,9 8,9" stroke="currentColor" strokeWidth="2"/>
-              </svg>
+            <DownloadButton
+              onClick={handleDownload}
+              isLoading={downloadingPdf}
+            >
               Download PDF
-            </button>
+            </DownloadButton>
           </div>
         </div>
 
@@ -129,26 +152,12 @@ function ItineraryViewPage({
               Back to Map
             </button>
             <div className="download-actions">
-              <button onClick={() => handleDownload('docx')} className="action-button docx">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
-                  <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
-                  <polyline points="10,9 9,9 8,9" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-                Download DOCX
-              </button>
-              <button onClick={() => handleDownload('pdf')} className="action-button pdf">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
-                  <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
-                  <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
-                  <polyline points="10,9 9,9 8,9" stroke="currentColor" strokeWidth="2"/>
-                </svg>
+              <DownloadButton
+                onClick={handleDownload}
+                isLoading={downloadingPdf}
+              >
                 Download PDF
-              </button>
+              </DownloadButton>
             </div>
           </div>
           

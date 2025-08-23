@@ -68,15 +68,6 @@
   box-shadow: var(--shadow);
 }
 
-.action-button.docx {
-  background: var(--primary);
-  color: white;
-}
-
-.action-button.docx:hover {
-  background: var(--primary-dark);
-}
-
 .action-button.pdf {
   background: var(--danger);
   color: white;
@@ -280,6 +271,49 @@
 .footer-info p {
   margin: 0;
   font-style: italic;
+}
+
+/* Inline loading spinner for buttons */
+.loading-spinner-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.spinner-inline {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-left: 2px solid white;
+  border-radius: 50%;
+  animation: spin-inline 0.8s linear infinite;
+}
+
+@keyframes spin-inline {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Remove the old loading spinner styles */
+.loading-spinner {
+  display: none; /* Hide the old one */
+}
+
+.spinner {
+  display: none; /* Hide the old one */
+}
+
+/* Enhanced disabled button states */
+.action-button:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.action-button:disabled:hover {
+  transform: none;
+  box-shadow: var(--shadow);
 }
 
 /* Responsive Design */

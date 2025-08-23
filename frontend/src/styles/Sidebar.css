@@ -6,6 +6,8 @@
   padding: 20px;
   overflow-y: auto;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Custom scrollbar styling */
@@ -34,11 +36,34 @@
   border-bottom: 2px solid var(--primary);
   text-align: center;
   font-weight: 600;
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .place-list {
   list-style: none;
   padding: 0;
+  margin: 0;
+  flex: 1; /* Take remaining space */
+  overflow-y: auto; /* Make the list itself scrollable */
+  min-height: 0; /* Allow shrinking */
+}
+
+/* Custom scrollbar for place list */
+.place-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.place-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.place-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+.place-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .place-item {
@@ -51,6 +76,7 @@
   transition: var(--transition);
   position: relative;
   overflow: hidden;
+  flex-shrink: 0; /* Prevent items from shrinking */
 }
 
 .place-item::before {
@@ -156,4 +182,40 @@
 .add-to-itinerary-btn:disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    padding: 15px;
+  }
+  
+  .place-item {
+    padding: 15px;
+    margin-bottom: 12px;
+  }
+  
+  .place-item h3 {
+    font-size: 1rem;
+  }
+  
+  .place-item p {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 12px;
+  }
+  
+  .place-item {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .add-to-itinerary-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
 }

@@ -1,34 +1,10 @@
 import io
-from docx import Document
-from docx.shared import Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.units import inch
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-import markdown2
-import requests
-from PIL import Image as PILImage
 import os
 import tempfile
-import re
+import subprocess
+import requests
+from PIL import Image as PILImage
 from datetime import datetime, timedelta
-
-# Register Unicode font
-FONT_PATH = os.path.join(os.path.dirname(__file__), "fonts", "DejaVuSans.ttf")
-if os.path.exists(FONT_PATH):
-    pdfmetrics.registerFont(TTFont("DejaVuSans", FONT_PATH))
-
-# Template path
-TEMPLATE_PATH = os.path.join(
-    os.path.dirname(__file__), 
-    "..", 
-    "templates", 
-    "Beige and Blue Minimal and Professional Daily Travel Itinerary Planner.docx"
-)
 
 def fetch_static_map(places, width=600, height=350):
     marker_strs = []
@@ -48,140 +24,250 @@ def fetch_static_map(places, width=600, height=350):
         print(f"Could not fetch static map: {e}")
     return None
 
-def replace_text_in_paragraph(paragraph, placeholder, replacement):
-    """Replace text in a paragraph while preserving formatting"""
-    if placeholder in paragraph.text:
-        # Get all runs
-        runs = paragraph.runs
-        # Find which runs contain the placeholder
-        for i, run in enumerate(runs):
-            if placeholder in run.text:
-                # Replace in this run
-                run.text = run.text.replace(placeholder, replacement)
-            elif paragraph.text.find(placeholder) != -1:
-                # Placeholder spans multiple runs, need to reconstruct
-                full_text = paragraph.text
-                if placeholder in full_text:
-                    new_text = full_text.replace(placeholder, replacement)
-                    # Clear all runs
-                    for run in runs:
-                        run.text = ""
-                    # Add new text to first run
-                    if runs:
-                        runs[0].text = new_text
-                    break
+def markdown_to_latex(markdown_text):
+    """Convert markdown to LaTeX with better formatting"""
+    lines = markdown_text.split('\n')
+    latex_content = []
+    in_list = False
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            if in_list:
+                latex_content.append('\\end{itemize}')
+                in_list = False
+            latex_content.append('')
+            continue
+            
+        # Escape special LaTeX characters
+        line = line.replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#')
+        line = line.replace('_', '\\_').replace('{', '\\{').replace('}', '\\}')
+        
+        if line.startswith('# '):
+            if in_list:
+                latex_content.append('\\end{itemize}')
+                in_list = False
+            title = line[2:].strip()
+            latex_content.append(f'\\section{{{title}}}')
+        elif line.startswith('## '):
+            if in_list:
+                latex_content.append('\\end{itemize}')
+                in_list = False
+            title = line[3:].strip()
+            latex_content.append(f'\\subsection{{{title}}}')
+        elif line.startswith('### '):
+            if in_list:
+                latex_content.append('\\end{itemize}')
+                in_list = False
+            title = line[4:].strip()
+            latex_content.append(f'\\subsubsection{{{title}}}')
+        elif line.startswith('- ') or line.startswith('* '):
+            if not in_list:
+                latex_content.append('\\begin{itemize}')
+                in_list = True
+            item = line[2:].strip()
+            latex_content.append(f'\\item {item}')
+        elif line.startswith('**') and line.endswith('**') and len(line) > 4:
+            if in_list:
+                latex_content.append('\\end{itemize}')
+                in_list = False
+            text = line[2:-2]
+            latex_content.append(f'\\textbf{{{text}}}')
+        else:
+            if in_list:
+                latex_content.append('\\end{itemize}')
+                in_list = False
+            if line:
+                latex_content.append(line)
+    
+    if in_list:
+        latex_content.append('\\end{itemize}')
+    
+    return '\n'.join(latex_content)
 
-def replace_placeholders_in_docx(doc, placeholders):
-    """Replace placeholders in all paragraphs, tables, and headers/footers"""
+def generate_latex_template(destination, date_range, budget, people, days, itinerary_content, map_image_path=None):
+    """Generate a beautiful LaTeX template with modern styling"""
     
-    # Replace in paragraphs
-    for paragraph in doc.paragraphs:
-        for placeholder, value in placeholders.items():
-            replace_text_in_paragraph(paragraph, placeholder, str(value))
+    # Choose a color theme based on destination
+    color_themes = {
+        'default': {
+            'primary': '0.2, 0.4, 0.8',      # Blue
+            'secondary': '0.8, 0.4, 0.2',    # Orange
+            'accent': '0.2, 0.6, 0.4'        # Green
+        },
+        'mountain': {
+            'primary': '0.2, 0.5, 0.3',      # Forest Green
+            'secondary': '0.6, 0.4, 0.2',    # Brown
+            'accent': '0.3, 0.6, 0.8'        # Sky Blue
+        },
+        'beach': {
+            'primary': '0.0, 0.5, 0.8',      # Ocean Blue
+            'secondary': '1.0, 0.8, 0.2',    # Sand Yellow
+            'accent': '0.2, 0.8, 0.6'        # Turquoise
+        },
+        'city': {
+            'primary': '0.3, 0.3, 0.3',      # Dark Gray
+            'secondary': '0.8, 0.2, 0.2',    # Red
+            'accent': '0.2, 0.6, 0.8'        # Blue
+        }
+    }
     
-    # Replace in tables
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    for placeholder, value in placeholders.items():
-                        replace_text_in_paragraph(paragraph, placeholder, str(value))
+    # Select theme based on destination keywords
+    theme = color_themes['default']
+    destination_lower = destination.lower()
+    if any(word in destination_lower for word in ['mountain', 'hill', 'trek', 'himalaya']):
+        theme = color_themes['mountain']
+    elif any(word in destination_lower for word in ['beach', 'coast', 'island', 'sea']):
+        theme = color_themes['beach']
+    elif any(word in destination_lower for word in ['delhi', 'mumbai', 'bangalore', 'city']):
+        theme = color_themes['city']
     
-    # Replace in headers and footers
-    for section in doc.sections:
-        # Header
-        if section.header:
-            for paragraph in section.header.paragraphs:
-                for placeholder, value in placeholders.items():
-                    replace_text_in_paragraph(paragraph, placeholder, str(value))
-        
-        # Footer
-        if section.footer:
-            for paragraph in section.footer.paragraphs:
-                for placeholder, value in placeholders.items():
-                    replace_text_in_paragraph(paragraph, placeholder, str(value))
+    map_section = ""
+    if map_image_path:
+        map_section = f"""
+\\section{{Route Map}}
+\\begin{{center}}
+\\includegraphics[width=0.8\\textwidth]{{{map_image_path}}}
+\\end{{center}}
+\\vspace{{1em}}
+"""
 
-def add_itinerary_to_template(doc, markdown_text):
-    """Add itinerary content to the template document"""
-    # Parse markdown and add structured content
-    html = markdown2.markdown(markdown_text)
-    try:
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, "html.parser")
-        
-        # Find a good place to insert content or add at the end
-        # Add a page break before itinerary content
-        doc.add_page_break()
-        
-        # Add detailed itinerary heading
-        doc.add_heading('Detailed Itinerary', level=1)
-        
-        for elem in soup.find_all(['h1', 'h2', 'h3', 'p', 'ul', 'ol']):
-            if elem.name == "h1":
-                doc.add_heading(elem.get_text(), level=1)
-            elif elem.name == "h2":
-                doc.add_heading(elem.get_text(), level=2)
-            elif elem.name == "h3":
-                doc.add_heading(elem.get_text(), level=3)
-            elif elem.name == "ul":
-                for li in elem.find_all("li"):
-                    doc.add_paragraph(li.get_text(), style='List Bullet')
-            elif elem.name == "ol":
-                for li in elem.find_all("li"):
-                    doc.add_paragraph(li.get_text(), style='List Number')
-            elif elem.name == "p" and elem.get_text().strip():
-                doc.add_paragraph(elem.get_text())
-    except ImportError:
-        # Fallback if BeautifulSoup is not available
-        doc.add_page_break()
-        doc.add_heading('Detailed Itinerary', level=1)
-        # Split by lines and add as paragraphs
-        lines = markdown_text.split('\n')
-        for line in lines:
-            if line.strip():
-                if line.startswith('#'):
-                    # It's a heading
-                    level = len(line) - len(line.lstrip('#'))
-                    title = line.lstrip('# ').strip()
-                    doc.add_heading(title, level=min(level, 3))
-                else:
-                    doc.add_paragraph(line)
+    latex_template = f"""
+\\documentclass[11pt,a4paper]{{article}}
+\\usepackage[utf8]{{inputenc}}
+\\usepackage[T1]{{fontenc}}
+\\usepackage{{geometry}}
+\\usepackage{{graphicx}}
+\\usepackage{{xcolor}}
+\\usepackage{{titling}}
+\\usepackage{{fancyhdr}}
+\\usepackage{{tikz}}
+\\usepackage{{tcolorbox}}
+\\usepackage{{fontawesome5}}
+\\usepackage{{enumitem}}
+\\usepackage{{amsmath}}
+\\usepackage{{setspace}}
+\\usepackage{{parskip}}
 
-def create_itinerary_docx(markdown_text, places=None, options=None):
-    """Create DOCX using the template"""
+% Page geometry
+\\geometry{{
+    top=2cm,
+    bottom=2cm,
+    left=2.5cm,
+    right=2.5cm,
+    headheight=1.5cm,
+    headsep=0.5cm
+}}
+
+% Define colors
+\\definecolor{{primary}}{{rgb}}{{{theme['primary']}}}
+\\definecolor{{secondary}}{{rgb}}{{{theme['secondary']}}}
+\\definecolor{{accent}}{{rgb}}{{{theme['accent']}}}
+\\definecolor{{lightgray}}{{rgb}}{{0.95, 0.95, 0.95}}
+\\definecolor{{darkgray}}{{rgb}}{{0.3, 0.3, 0.3}}
+
+% Custom title style
+\\pretitle{{\\begin{{center}}\\LARGE\\bfseries\\color{{primary}}}}
+\\posttitle{{\\par\\end{{center}}\\vspace{{0.5em}}}}
+\\preauthor{{\\begin{{center}}\\large\\color{{secondary}}}}
+\\postauthor{{\\end{{center}}}}
+\\predate{{\\begin{{center}}\\large\\color{{darkgray}}}}
+\\postdate{{\\par\\end{{center}}}}
+
+% Header and footer
+\\pagestyle{{fancy}}
+\\fancyhf{{}}
+\\fancyhead[L]{{\\color{{primary}}\\textbf{{Bagpack Travel Itinerary}}}}
+\\fancyhead[R]{{\\color{{secondary}}{destination}}}
+\\fancyfoot[C]{{\\color{{darkgray}}\\thepage}}
+\\renewcommand{{\\headrulewidth}}{{2pt}}
+\\renewcommand{{\\headrule}}{{\\hbox to\\headwidth{{\\color{{primary}}\\leaders\\hrule height \\headrulewidth\\hfill}}}}
+
+% Custom section styles
+\\usepackage{{titlesec}}
+\\titleformat{{\\section}}
+  {{\\normalfont\\Large\\bfseries\\color{{primary}}}}
+  {{\\thesection}}{{1em}}{{}}
+  [\\color{{primary}}\\titlerule]
+\\titleformat{{\\subsection}}
+  {{\\normalfont\\large\\bfseries\\color{{secondary}}}}
+  {{\\thesubsection}}{{1em}}{{}}
+\\titleformat{{\\subsubsection}}
+  {{\\normalfont\\normalsize\\bfseries\\color{{accent}}}}
+  {{\\thesubsubsection}}{{1em}}{{}}
+
+% Custom boxes
+\\tcbuselibrary{{skins}}
+\\newtcolorbox{{infobox}}{{
+    colback=lightgray,
+    colframe=primary,
+    boxrule=2pt,
+    arc=5pt,
+    left=10pt,
+    right=10pt,
+    top=10pt,
+    bottom=10pt
+}}
+
+% Document content
+\\title{{\\Huge Travel Itinerary\\\\\\large {destination} Adventure}}
+\\author{{\\faUser\\ {people} {'Person' if people == '1' else 'People'} \\quad \\faCalendarAlt\\ {days} {'Day' if days == 1 else 'Days'} \\quad \\faRupeeSign\\ {budget}}}
+\\date{{{date_range}}}
+
+\\begin{{document}}
+
+\\maketitle
+\\thispagestyle{{fancy}}
+
+% Trip Overview Box
+\\begin{{infobox}}
+\\begin{{center}}
+\\textbf{{\\Large \\color{{primary}} Trip Overview}}
+\\end{{center}}
+\\vspace{{0.5em}}
+\\begin{{itemize}}[leftmargin=2em]
+\\item[\\faMapMarkerAlt] \\textbf{{Destination:}} {destination}
+\\item[\\faCalendarAlt] \\textbf{{Duration:}} {days} {'day' if days == 1 else 'days'} ({date_range})
+\\item[\\faUsers] \\textbf{{Travelers:}} {people} {'person' if people == '1' else 'people'}
+\\item[\\faRupeeSign] \\textbf{{Budget:}} ₹{budget}
+\\item[\\faClock] \\textbf{{Generated:}} {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+\\end{{itemize}}
+\\end{{infobox}}
+
+\\vspace{{1em}}
+
+{map_section}
+
+% Main Content
+{itinerary_content}
+
+\\vspace{{2em}}
+
+% Footer section
+\\begin{{center}}
+\\color{{darkgray}}
+\\rule{{0.8\\textwidth}}{{0.5pt}}\\\\
+\\vspace{{0.5em}}
+\\textit{{Generated by Bagpack AI Travel Assistant}}\\\\
+\\textit{{Have a wonderful journey!}}
+\\end{{center}}
+
+\\end{{document}}
+"""
+    return latex_template
+
+def create_itinerary_pdf(markdown_text, places=None, options=None):
+    """Create PDF using LaTeX with beautiful theming"""
     
-    # Load the template
-    if os.path.exists(TEMPLATE_PATH):
-        doc = Document(TEMPLATE_PATH)
-        print(f"Using template: {TEMPLATE_PATH}")
-    else:
-        print(f"Template not found at {TEMPLATE_PATH}, creating new document")
-        doc = Document()
-        # Add basic structure if no template
-        doc.add_heading('Travel Itinerary', 0)
-    
-    # Extract destination from places
+    # Extract information
     destination = "Your Destination"
     if places and len(places) > 0:
-        # Get the most common city from places
-        cities = []
-        for place in places:
-            name = place.get('name', '')
-            if ',' in name:
-                city = name.split(',')[-1].strip()
-                cities.append(city)
-        
-        if cities:
-            # Use the most frequent city
-            from collections import Counter
-            destination = Counter(cities).most_common(1)[0][0]
-        else:
-            destination = places[0].get('name', 'Your Destination')
+        destination = places[0].get('name', 'Your Destination').split(',')[0].strip()
     
     # Create date range
     start_date = datetime.now()
     days = 3  # default
-    if options and 'days' in options:
+    if options and options.get('days'):
         try:
             days = int(options['days'])
         except (ValueError, TypeError):
@@ -195,128 +281,119 @@ def create_itinerary_docx(markdown_text, places=None, options=None):
     people = "1"
     if options:
         if options.get('budget'):
-            budget = f"₹{options['budget']}"
+            budget = str(options['budget'])
         if options.get('people'):
             people = str(options['people'])
     
-    # Prepare placeholders for replacement
-    placeholders = {
-        '[DESTINATION]': destination,
-        '[DATE_RANGE]': date_range,
-        '[TRAVELER_NAME]': 'Traveler',
-        '[CURRENT_DATE]': datetime.now().strftime('%B %d, %Y'),
-        '[BUDGET]': budget,
-        '[PEOPLE]': people,
-        '[DAYS]': str(days),
-        # Add more common placeholders
-        'DESTINATION': destination,
-        'DATE_RANGE': date_range,
-        'TRAVELER_NAME': 'Traveler',
-        'CURRENT_DATE': datetime.now().strftime('%B %d, %Y'),
-        'BUDGET': budget,
-        'PEOPLE': people,
-        'DAYS': str(days),
-    }
+    # Convert markdown to LaTeX
+    latex_content = markdown_to_latex(markdown_text)
     
-    print(f"Replacing placeholders: {placeholders}")
-    
-    # Replace placeholders
-    replace_placeholders_in_docx(doc, placeholders)
-    
-    # Add detailed itinerary content
-    add_itinerary_to_template(doc, markdown_text)
-    
-    # Try to add map image
-    if places:
-        map_img_io = fetch_static_map(places)
-        if map_img_io:
-            try:
-                # Save image to temporary file
-                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                    pil_img = PILImage.open(map_img_io)
-                    pil_img.thumbnail((400, 250))
-                    pil_img.save(tmp_file.name, format='PNG')
-                    
-                    # Add map section
-                    doc.add_heading('Route Map', level=2)
-                    paragraph = doc.add_paragraph()
-                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    run = paragraph.add_run()
-                    run.add_picture(tmp_file.name, width=Inches(5))
-                    
-                # Clean up temporary file
-                os.unlink(tmp_file.name)
-            except Exception as e:
-                print(f"Could not add map image to DOCX: {e}")
-    
-    # Save to buffer
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer
-
-def create_itinerary_pdf(markdown_text, places=None):
-    """Keep existing PDF function for backward compatibility"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
-    styles = getSampleStyleSheet()
-    
-    # Use DejaVuSans if available
-    if os.path.exists(FONT_PATH):
-        for style_name in styles.byName:
-            styles[style_name].fontName = "DejaVuSans"
-        styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading1'], alignment=TA_CENTER, fontName="DejaVuSans"))
-    else:
-        styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading1'], alignment=TA_CENTER))
-    
-    story = []
-
-    story.append(Paragraph("🗺️ Your Bagpack Itinerary", styles['CenterTitle']))
-    story.append(Spacer(1, 18))
-
-    # Try to add map image
-    if places:
-        map_img_io = fetch_static_map(places)
-        if map_img_io:
-            try:
+    # Handle map image
+    map_image_path = None
+    temp_map_file = None
+    if places and len(places) > 0:
+        try:
+            map_img_io = fetch_static_map(places)
+            if map_img_io:
+                temp_map_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
                 pil_img = PILImage.open(map_img_io)
-                pil_img.thumbnail((400, 250))
-                img_io = io.BytesIO()
-                pil_img.save(img_io, format='PNG')
-                img_io.seek(0)
-                story.append(Image(img_io, width=pil_img.width, height=pil_img.height))
-                story.append(Spacer(1, 12))
-            except Exception as e:
-                print(f"Could not add map image to PDF: {e}")
-
-    html = markdown2.markdown(markdown_text)
+                pil_img.thumbnail((600, 400))
+                pil_img.save(temp_map_file.name, format='PNG')
+                map_image_path = temp_map_file.name
+                print("Generated map image for LaTeX")
+        except Exception as e:
+            print(f"Could not generate map image: {e}")
+    
+    # Generate LaTeX document
+    latex_doc = generate_latex_template(
+        destination, date_range, budget, people, days, 
+        latex_content, map_image_path
+    )
+    
+    # Compile LaTeX to PDF
     try:
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, "html.parser")
-        for elem in soup.contents:
-            if elem and hasattr(elem, 'name'):
-                if elem.name == "h1":
-                    story.append(Paragraph(f"<b>{elem.get_text()}</b>", styles['Heading1']))
-                elif elem.name == "h2":
-                    story.append(Paragraph(f"<b>{elem.get_text()}</b>", styles['Heading2']))
-                elif elem.name == "h3":
-                    story.append(Paragraph(f"<b>{elem.get_text()}</b>", styles['Heading3']))
-                elif elem.name == "ul":
-                    for li in elem.find_all("li"):
-                        story.append(Paragraph(f"• {li.get_text()}", styles['Normal']))
-                elif elem.name == "ol":
-                    for idx, li in enumerate(elem.find_all("li"), 1):
-                        story.append(Paragraph(f"{idx}. {li.get_text()}", styles['Normal']))
-                elif elem.name == "p":
-                    story.append(Paragraph(elem.get_text(), styles['Normal']))
-                story.append(Spacer(1, 6))
-    except ImportError:
-        # Fallback without BeautifulSoup
-        lines = markdown_text.split('\n')
-        for line in lines:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Write LaTeX file
+            tex_file = os.path.join(temp_dir, 'itinerary.tex')
+            with open(tex_file, 'w', encoding='utf-8') as f:
+                f.write(latex_doc)
+            
+            # Copy map image to temp directory if it exists
+            if map_image_path:
+                import shutil
+                temp_map_path = os.path.join(temp_dir, 'map.png')
+                shutil.copy2(map_image_path, temp_map_path)
+                # Update LaTeX to use local path
+                latex_doc = latex_doc.replace(map_image_path, 'map.png')
+                with open(tex_file, 'w', encoding='utf-8') as f:
+                    f.write(latex_doc)
+            
+            # Compile with pdflatex (run twice for proper references)
+            for i in range(2):
+                result = subprocess.run([
+                    'pdflatex', 
+                    '-interaction=nonstopmode',
+                    '-output-directory', temp_dir,
+                    tex_file
+                ], capture_output=True, text=True, cwd=temp_dir)
+                
+                if result.returncode != 0:
+                    print(f"LaTeX compilation error (pass {i+1}):")
+                    print(result.stdout)
+                    print(result.stderr)
+                    if i == 1:  # Only raise error on final pass
+                        raise Exception(f"LaTeX compilation failed: {result.stderr}")
+            
+            # Read the generated PDF
+            pdf_file = os.path.join(temp_dir, 'itinerary.pdf')
+            if os.path.exists(pdf_file):
+                with open(pdf_file, 'rb') as f:
+                    pdf_buffer = io.BytesIO(f.read())
+                print("LaTeX PDF generated successfully")
+                return pdf_buffer
+            else:
+                raise Exception("PDF file was not generated")
+                
+    except FileNotFoundError:
+        print("pdflatex not found. Falling back to simple PDF generation.")
+        return create_simple_pdf_fallback(markdown_text, places)
+    except Exception as e:
+        print(f"LaTeX compilation failed: {e}")
+        return create_simple_pdf_fallback(markdown_text, places)
+    finally:
+        # Clean up temporary map file
+        if temp_map_file:
+            try:
+                os.unlink(temp_map_file.name)
+            except:
+                pass
+
+def create_simple_pdf_fallback(markdown_text, places=None):
+    """Fallback PDF generation using reportlab if LaTeX fails"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    story.append(Paragraph("🗺️ Your Bagpack Itinerary", styles['Title']))
+    story.append(Spacer(1, 12))
+    
+    # Add content
+    lines = markdown_text.split('\n')
+    for line in lines:
+        if line.strip():
             story.append(Paragraph(line, styles['Normal']))
             story.append(Spacer(1, 6))
-
+    
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+# Remove the DOCX function entirely
+def create_itinerary_docx(*args, **kwargs):
+    """DOCX generation is no longer supported"""
+    raise NotImplementedError("DOCX generation has been removed. Use PDF with LaTeX instead.")

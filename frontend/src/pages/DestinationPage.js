@@ -230,9 +230,6 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
           className={`sidebar-container ${sidebarCollapsed ? 'collapsed' : ''}`}
           style={!sidebarCollapsed ? { width: `${sidebarWidth}px` } : undefined}
         >
-          <div className="sidebar-toggle" onClick={toggleSidebar}>
-            {sidebarCollapsed ? '→' : '←'}
-          </div>
           <Sidebar 
             places={locationData.suggestions} 
             onResize={handleSidebarResize}
@@ -246,12 +243,28 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
         </div>
         
         <div className="map-container">
+          {/* Sidebar toggle button */}
+          <div 
+            className={`sidebar-toggle ${sidebarCollapsed ? 'collapsed' : ''}`} 
+            onClick={toggleSidebar}
+          >
+            {sidebarCollapsed ? '→' : '←'}
+          </div>
+          
           <Map 
             center={locationData.coordinates} 
             places={locationData.suggestions}
             itineraryPlaces={itineraryPlaces}
             userLocation={userLocation}
           />
+
+          {/* Chatbot toggle button - Add collapsed class */}
+          <div 
+            className={`chatbot-toggle ${chatbotCollapsed ? 'collapsed' : ''}`} 
+            onClick={toggleChatbot}
+          >
+            {chatbotCollapsed ? '←' : '→'}
+          </div>
         </div>
         
         <div 
@@ -259,9 +272,6 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
           className={`chatbot-container ${chatbotCollapsed ? 'collapsed' : ''}`}
           style={!chatbotCollapsed ? { width: `${chatbotWidth}px` } : undefined}
         >
-          <div className="chatbot-toggle" onClick={toggleChatbot}>
-            {chatbotCollapsed ? '←' : '→'}
-          </div>
           <Chatbot location={destination} onResize={handleChatbotResize} userLocation={userLocation} />
         </div>
 

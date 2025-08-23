@@ -66,14 +66,11 @@
   height: 100%;
   transition: width 0.3s ease;
   width: 300px;
+  overflow: hidden;
 }
 
 .sidebar-container.collapsed {
   width: 0px;
-}
-
-.sidebar-container.collapsed .sidebar {
-  transform: translateX(-100%);
 }
 
 /* Chatbot container styles */
@@ -88,14 +85,12 @@
   width: 0px;
 }
 
-.chatbot-container.collapsed .chatbot {
-  transform: translateX(100%);
-}
-
-/* Modern toggle buttons - positioned outside containers */
-.sidebar-toggle,
-.chatbot-toggle {
+/* Fixed toggle buttons - positioned absolutely on the map container */
+.sidebar-toggle {
   position: absolute;
+  left: 0px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 36px;
   height: 48px;
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -105,28 +100,36 @@
   justify-content: center;
   cursor: pointer;
   z-index: 1002;
-  top: 50%;
-  transform: translateY(-50%);
   transition: all 0.3s ease;
   border: none;
   color: white;
   font-size: 14px;
   font-weight: 600;
+  border-radius: 0 12px 12px 0;
   backdrop-filter: blur(10px);
 }
 
-/* Sidebar toggle - positioned outside on the right */
-.sidebar-toggle {
-  right: -18px; /* Half the width to center on border */
-  border-radius: 0 12px 12px 0;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
-}
-
-/* Chatbot toggle - positioned outside on the left */
 .chatbot-toggle {
-  left: -18px; /* Half the width to center on border */
+  position: absolute;
+  right: 0px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1002;
+  transition: all 0.3s ease;
+  border: none;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
   border-radius: 12px 0 0 12px;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
 }
 
 .sidebar-toggle:hover,
@@ -141,23 +144,30 @@
   transform: translateY(-50%) scale(0.95);
 }
 
-/* Icon animations */
-.sidebar-toggle {
-  transition: all 0.3s ease;
-}
-
-.chatbot-toggle {
-  transition: all 0.3s ease;
-}
-
-/* When collapsed, change icon and position */
-.sidebar-container.collapsed .sidebar-toggle {
-  right: -18px;
+/* When collapsed, change background color for both toggles */
+.sidebar-toggle.collapsed,
+.chatbot-toggle.collapsed {
   background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
 }
 
-.chatbot-container.collapsed .chatbot-toggle {
-  left: -18px;
+.sidebar-toggle.collapsed:hover,
+.chatbot-toggle.collapsed:hover {
+  background: linear-gradient(135deg, var(--secondary-dark), var(--secondary));
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: var(--shadow-lg);
+}
+
+/* When collapsed, change icon and background color */
+.sidebar-container.collapsed ~ .map-container .sidebar-toggle {
+  background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
+}
+
+.chatbot-container.collapsed ~ .map-container .chatbot-toggle {
+  background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
+}
+
+/* Fix: Update the selector to properly target chatbot toggle when collapsed */
+.map-container .chatbot-toggle.collapsed {
   background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
 }
 
@@ -306,14 +316,6 @@
     height: 42px;
     font-size: 12px;
   }
-  
-  .sidebar-toggle {
-    right: -16px;
-  }
-  
-  .chatbot-toggle {
-    left: -16px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -355,10 +357,5 @@
     border-radius: 12px 12px 0 0;
     width: 48px;
     height: 32px;
-  }
-  
-  .sidebar-container.collapsed .sidebar-toggle,
-  .chatbot-container.collapsed .chatbot-toggle {
-    bottom: -16px;
   }
 }
