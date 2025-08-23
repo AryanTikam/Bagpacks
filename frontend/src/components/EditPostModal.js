@@ -43,24 +43,47 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
   const detectMediaType = (url) => {
     if (!url) return null;
     
+    // Remove any query parameters for better detection
     const cleanUrl = url.split('?')[0].toLowerCase();
     
+    // Video detection - prioritize video platforms and extensions
     if (url.includes('youtube.com/watch') || 
         url.includes('youtu.be/') || 
         url.includes('vimeo.com/') ||
         cleanUrl.endsWith('.mp4') || 
         cleanUrl.endsWith('.webm') || 
         cleanUrl.endsWith('.mov') ||
-        cleanUrl.endsWith('.avi')) {
+        cleanUrl.endsWith('.avi') ||
+        cleanUrl.endsWith('.mkv') ||
+        cleanUrl.endsWith('.flv')) {
       return 'video';
     }
     
-    if (url.includes('giphy.com') || 
-        url.includes('tenor.com') || 
-        cleanUrl.endsWith('.gif')) {
+    // GIF detection - be more specific
+    if (cleanUrl.endsWith('.gif') ||
+        url.includes('giphy.com/gifs/') || 
+        url.includes('tenor.com/view/') ||
+        url.includes('gfycat.com/')) {
       return 'gif';
     }
     
+    // Image detection - be more comprehensive
+    if (cleanUrl.endsWith('.jpg') || 
+        cleanUrl.endsWith('.jpeg') ||
+        cleanUrl.endsWith('.png') || 
+        cleanUrl.endsWith('.webp') ||
+        cleanUrl.endsWith('.svg') ||
+        cleanUrl.endsWith('.bmp') ||
+        cleanUrl.endsWith('.tiff') ||
+        url.includes('imgur.com/') ||
+        url.includes('i.imgur.com/') ||
+        url.includes('instagram.com/p/') ||
+        url.includes('unsplash.com/photos/') ||
+        url.includes('pexels.com/photo/')) {
+      return 'image';
+    }
+    
+    // Default to image for most URLs (this covers many image hosting services)
     return 'image';
   };
 

@@ -336,7 +336,8 @@ router.delete('/:postId/comments/:commentId', auth, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete this comment' });
     }
 
-    comment.remove();
+    // Use pull method instead of remove
+    post.comments.pull(req.params.commentId);
     await post.save();
     
     res.json({ message: 'Comment deleted successfully' });
@@ -414,7 +415,8 @@ router.delete('/:postId/comments/:commentId/replies/:replyId', auth, async (req,
       return res.status(403).json({ message: 'Not authorized to delete this reply' });
     }
 
-    reply.remove();
+    // Use pull method instead of remove
+    comment.replies.pull(req.params.replyId);
     await post.save();
     
     res.json({ message: 'Reply deleted successfully' });

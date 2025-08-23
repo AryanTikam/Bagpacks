@@ -276,11 +276,11 @@ const CommentSection = ({ postId, comments, onAddComment }) => {
   };
 
   const isCommentAuthor = (comment) => {
-    return user && comment.userId && comment.userId._id === user.id;
+    return user && comment.userId && (comment.userId._id === user.id || comment.userId === user.id);
   };
 
   const isReplyAuthor = (reply) => {
-    return user && reply.userId && reply.userId._id === user.id;
+    return user && reply.userId && (reply.userId._id === user.id || reply.userId === user.id);
   };
 
   return (
