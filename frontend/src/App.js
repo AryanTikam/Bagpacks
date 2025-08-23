@@ -27,11 +27,6 @@ function AppContent() {
     
     try {
       const token = localStorage.getItem('token');
-      const config = {
-        responseType: "blob",
-        timeout: 30000,
-        ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
-      };
       
       const response = await fetch("http://localhost:5000/api/itinerary", {
         method: 'POST',

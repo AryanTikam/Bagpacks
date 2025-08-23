@@ -52,6 +52,19 @@ function Sidebar({ places, onResize, onAddToItinerary }) {
     };
   }, [onResize]);
 
+  // Debug function to see what data we're getting
+  console.log("Sidebar places data:", places);
+
+  const getPlaceDescription = (place) => {
+    // Try multiple possible field names for description
+    return place.description || 
+           place.desc || 
+           place.summary || 
+           place.type || 
+           place.category || 
+           'Tourist attraction';
+  };
+
   return (
     <div className="sidebar-wrapper">
       <div ref={sidebarRef} className="sidebar" style={{ width: "100%" }}>
@@ -61,8 +74,7 @@ function Sidebar({ places, onResize, onAddToItinerary }) {
             places.map((p, i) => (
               <li key={i} className="place-item">
                 <h3>{p.name}</h3>
-                {p.description && <p>{p.description}</p>}
-                {p.type && !p.description && <p>{p.type}</p>}
+                <p>{getPlaceDescription(p)}</p>
                 {onAddToItinerary && (
                   <button 
                     className="add-to-itinerary-btn"

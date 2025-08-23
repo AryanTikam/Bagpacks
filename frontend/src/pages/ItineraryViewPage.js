@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Navigation from "../components/Navigation";
 import ReactMarkdown from "react-markdown";
+import TemplateSelectionPage from "./TemplateSelectionPage";
 import "../styles/ItineraryViewPage.css";
 
 function ItineraryViewPage({ 
@@ -12,17 +13,19 @@ function ItineraryViewPage({
   destination,
   onViewAdventure 
 }) {
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showTemplateSelection, setShowTemplateSelection] = useState(false);
 
-  const handleDownload = async () => {
-    setDownloadingPdf(true);
+  const handleDownloadClick = () => {
+    setShowTemplateSelection(true);
+  };
+
+  const handleTemplateDownload = async (templateId) => {
     try {
-      await onDownload("pdf");
+      await onDownload("pdf", templateId);
+      setShowTemplateSelection(false);
     } catch (error) {
       console.error("Error downloading PDF:", error);
       alert("Failed to download PDF. Please try again.");
-    } finally {
-      setDownloadingPdf(false);
     }
   };
 
@@ -37,30 +40,33 @@ function ItineraryViewPage({
     });
   };
 
-  // Enhanced download button component with single spinner
-  const DownloadButton = ({ onClick, isLoading, children }) => (
+  // Show template selection page if requested
+  if (showTemplateSelection) {
+    return (
+      <TemplateSelectionPage
+        onBack={() => setShowTemplateSelection(false)}
+        onGeneratePDF={handleTemplateDownload}
+        itinerary={itinerary}
+        places={places}
+        itineraryOptions={itineraryOptions}
+        destination={destination}
+        onViewAdventure={onViewAdventure}
+      />
+    );
+  }
+
+  // Download button component
+  const DownloadButton = ({ onClick, children }) => (
     <button 
       onClick={onClick} 
       className="action-button pdf"
-      disabled={isLoading}
     >
-      {isLoading ? (
-        <>
-          <div className="loading-spinner-inline">
-            <div className="spinner-inline"></div>
-          </div>
-          <span>Generating PDF...</span>
-        </>
-      ) : (
-        <>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2"/>
-            <polyline points="7,10 12,15 17,10" stroke="currentColor" strokeWidth="2"/>
-            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2"/>
-          </svg>
-          {children}
-        </>
-      )}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2"/>
+        <polyline points="7,10 12,15 17,10" stroke="currentColor" strokeWidth="2"/>
+        <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2"/>
+      </svg>
+      {children}
     </button>
   );
 
@@ -115,11 +121,8 @@ function ItineraryViewPage({
           </div>
           
           <div className="itinerary-actions">
-            <DownloadButton
-              onClick={handleDownload}
-              isLoading={downloadingPdf}
-            >
-              Download PDF
+            <DownloadButton onClick={handleDownloadClick}>
+              Choose Template & Download
             </DownloadButton>
           </div>
         </div>
@@ -152,11 +155,8 @@ function ItineraryViewPage({
               Back to Map
             </button>
             <div className="download-actions">
-              <DownloadButton
-                onClick={handleDownload}
-                isLoading={downloadingPdf}
-              >
-                Download PDF
+              <DownloadButton onClick={handleDownloadClick}>
+                Choose Template & Download
               </DownloadButton>
             </div>
           </div>

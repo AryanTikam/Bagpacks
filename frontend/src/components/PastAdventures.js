@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import '../styles/PastAdventures.css';
 
 const PastAdventures = ({ onClose, onViewAdventure }) => {
   const [adventures, setAdventures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { user } = useAuth();
 
   useEffect(() => {
     fetchAdventures();

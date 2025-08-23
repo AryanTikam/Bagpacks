@@ -1,31 +1,47 @@
-import io
-import os
-import tempfile
 import subprocess
-import requests
-from PIL import Image as PILImage
+import tempfile
+import os
+import io
+import re
 from datetime import datetime, timedelta
+from PIL import Image as PILImage
+import requests
 
 def fetch_static_map(places, width=600, height=350):
     marker_strs = []
     for i, place in enumerate(places):
         lat, lon = place.get("coords", [None, None])
         if lat is not None and lon is not None:
-            color = ["red", "blue", "green", "yellow", "purple"][i % 5]
+            color = "red" if i == 0 else "blue"
             marker_strs.append(f"markers={lat},{lon},{color}{i+1}")
+    
+    if not marker_strs:
+        return None
+        
     markers = "&".join(marker_strs)
     center = f"{places[0]['coords'][0]},{places[0]['coords'][1]}"
-    url = f"https://staticmap.openstreetmap.de/staticmap.php?center={center}&zoom=13&size={width}x{height}&{markers}"
-    try:
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200:
-            return io.BytesIO(resp.content)
-    except Exception as e:
-        print(f"Could not fetch static map: {e}")
+    
+    # Try multiple map services
+    map_urls = [
+        f"https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/{center},{13}/{width}x{height}?access_token=pk.your_token",
+        f"https://maps.googleapis.com/maps/api/staticmap?center={center}&zoom=13&size={width}x{height}&{markers}",
+        f"https://staticmap.openstreetmap.de/staticmap.php?center={center}&zoom=13&size={width}x{height}&{markers}"
+    ]
+    
+    for url in map_urls:
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                return response.content
+        except Exception as e:
+            print(f"Map service failed: {e}")
+            continue
+    
+    print("All map services failed, continuing without map")
     return None
 
 def markdown_to_latex(markdown_text):
-    """Convert markdown to LaTeX with better formatting"""
+    """Convert markdown to LaTeX with proper formatting for headers, bold, etc."""
     lines = markdown_text.split('\n')
     latex_content = []
     in_list = False
@@ -36,102 +52,111 @@ def markdown_to_latex(markdown_text):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            latex_content.append('')
+            latex_content.append('\\vspace{0.5em}')
             continue
             
         # Escape special LaTeX characters
-        line = line.replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#')
-        line = line.replace('_', '\\_').replace('{', '\\{').replace('}', '\\}')
+        escaped_line = line.replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#')
+        escaped_line = escaped_line.replace('_', '\\_').replace('{', '\\{').replace('}', '\\}')
         
+        # Handle headers
         if line.startswith('# '):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            title = line[2:].strip()
-            latex_content.append(f'\\section{{{title}}}')
+            escaped_line = escaped_line[2:].strip()
+            latex_content.append(f'\\section{{{handle_bold_text(escaped_line)}}}')
         elif line.startswith('## '):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            title = line[3:].strip()
-            latex_content.append(f'\\subsection{{{title}}}')
+            escaped_line = escaped_line[3:].strip()
+            latex_content.append(f'\\subsection{{{handle_bold_text(escaped_line)}}}')
         elif line.startswith('### '):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            title = line[4:].strip()
-            latex_content.append(f'\\subsubsection{{{title}}}')
+            escaped_line = escaped_line[4:].strip()
+            latex_content.append(f'\\subsubsection{{{handle_bold_text(escaped_line)}}}')
         elif line.startswith('- ') or line.startswith('* '):
             if not in_list:
                 latex_content.append('\\begin{itemize}')
                 in_list = True
-            item = line[2:].strip()
-            latex_content.append(f'\\item {item}')
-        elif line.startswith('**') and line.endswith('**') and len(line) > 4:
-            if in_list:
-                latex_content.append('\\end{itemize}')
-                in_list = False
-            text = line[2:-2]
-            latex_content.append(f'\\textbf{{{text}}}')
+            escaped_line = escaped_line[2:].strip()
+            latex_content.append(f'\\item {handle_bold_text(escaped_line)}')
         else:
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            if line:
-                latex_content.append(line)
+            latex_content.append(f'{handle_bold_text(escaped_line)}\\\\')
     
     if in_list:
         latex_content.append('\\end{itemize}')
     
     return '\n'.join(latex_content)
 
-def generate_latex_template(destination, date_range, budget, people, days, itinerary_content, map_image_path=None):
-    """Generate a beautiful LaTeX template with modern styling"""
+def handle_bold_text(text):
+    """Handle **bold** and *italic* markdown formatting"""
+    # Handle **bold** text
+    text = re.sub(r'\*\*(.*?)\*\*', r'\\textbf{\1}', text)
     
-    # Choose a color theme based on destination
-    color_themes = {
-        'default': {
-            'primary': '0.2, 0.4, 0.8',      # Blue
-            'secondary': '0.8, 0.4, 0.2',    # Orange
-            'accent': '0.2, 0.6, 0.4'        # Green
+    # Handle *italic* text (but not if it's part of **bold**)
+    text = re.sub(r'(?<!\*)\*([^*]+?)\*(?!\*)', r'\\textit{\1}', text)
+    
+    return text
+
+def get_template_config(template_id):
+    """Get template-specific configurations"""
+    templates = {
+        'modern': {
+            'name': 'Modern Professional',
+            'primary': '0.15, 0.39, 0.92',      # #2563eb
+            'secondary': '0.49, 0.23, 0.93',    # #7c3aed  
+            'accent': '0.02, 0.59, 0.41',       # #059669
+            'geometry': 'top=2cm, bottom=2cm, left=2.5cm, right=2.5cm',
+            'font_package': '\\usepackage{lmodern}',
+            'header_style': 'modern',
+            'background': 'none'
         },
-        'mountain': {
-            'primary': '0.2, 0.5, 0.3',      # Forest Green
-            'secondary': '0.6, 0.4, 0.2',    # Brown
-            'accent': '0.3, 0.6, 0.8'        # Sky Blue
+        'vintage': {
+            'name': 'Vintage Explorer',
+            'primary': '0.57, 0.25, 0.05',      # #92400e
+            'secondary': '0.71, 0.32, 0.04',    # #b45309
+            'accent': '0.02, 0.37, 0.27',       # #065f46
+            'geometry': 'top=2.5cm, bottom=2.5cm, left=3cm, right=3cm',
+            'font_package': '\\usepackage{mathptmx}',
+            'header_style': 'vintage',
+            'background': 'vintage'
         },
-        'beach': {
-            'primary': '0.0, 0.5, 0.8',      # Ocean Blue
-            'secondary': '1.0, 0.8, 0.2',    # Sand Yellow
-            'accent': '0.2, 0.8, 0.6'        # Turquoise
-        },
-        'city': {
-            'primary': '0.3, 0.3, 0.3',      # Dark Gray
-            'secondary': '0.8, 0.2, 0.2',    # Red
-            'accent': '0.2, 0.6, 0.8'        # Blue
+        'minimalist': {
+            'name': 'Minimalist Zen',
+            'primary': '0.22, 0.25, 0.32',      # #374151
+            'secondary': '0.42, 0.45, 0.50',    # #6b7280
+            'accent': '0.05, 0.65, 0.91',       # #0ea5e9
+            'geometry': 'top=2cm, bottom=2cm, left=2cm, right=2cm',
+            'font_package': '\\usepackage{helvet}\\renewcommand{\\familydefault}{\\sfdefault}',
+            'header_style': 'minimalist',
+            'background': 'none'
         }
     }
+    return templates.get(template_id, templates['modern'])
+
+def generate_latex_template(destination, date_range, budget, people, days, itinerary_content, map_image_path=None, template_id='modern'):
+    """Generate LaTeX template with the selected theme"""
     
-    # Select theme based on destination keywords
-    theme = color_themes['default']
-    destination_lower = destination.lower()
-    if any(word in destination_lower for word in ['mountain', 'hill', 'trek', 'himalaya']):
-        theme = color_themes['mountain']
-    elif any(word in destination_lower for word in ['beach', 'coast', 'island', 'sea']):
-        theme = color_themes['beach']
-    elif any(word in destination_lower for word in ['delhi', 'mumbai', 'bangalore', 'city']):
-        theme = color_themes['city']
+    template_config = get_template_config(template_id)
     
     map_section = ""
     if map_image_path:
         map_section = f"""
 \\section{{Route Map}}
 \\begin{{center}}
-\\includegraphics[width=0.8\\textwidth]{{{map_image_path}}}
+\\includegraphics[width=0.8\\textwidth]{{map.png}}
 \\end{{center}}
 \\vspace{{1em}}
 """
 
+    # Simplified but effective LaTeX template with proper color usage
     latex_template = f"""
 \\documentclass[11pt,a4paper]{{article}}
 \\usepackage[utf8]{{inputenc}}
@@ -141,38 +166,33 @@ def generate_latex_template(destination, date_range, budget, people, days, itine
 \\usepackage{{xcolor}}
 \\usepackage{{titling}}
 \\usepackage{{fancyhdr}}
-\\usepackage{{tikz}}
 \\usepackage{{tcolorbox}}
-\\usepackage{{fontawesome5}}
 \\usepackage{{enumitem}}
-\\usepackage{{amsmath}}
 \\usepackage{{setspace}}
 \\usepackage{{parskip}}
+{template_config['font_package']}
 
 % Page geometry
 \\geometry{{
-    top=2cm,
-    bottom=2cm,
-    left=2.5cm,
-    right=2.5cm,
+    {template_config['geometry']},
     headheight=1.5cm,
     headsep=0.5cm
 }}
 
 % Define colors
-\\definecolor{{primary}}{{rgb}}{{{theme['primary']}}}
-\\definecolor{{secondary}}{{rgb}}{{{theme['secondary']}}}
-\\definecolor{{accent}}{{rgb}}{{{theme['accent']}}}
+\\definecolor{{primary}}{{rgb}}{{{template_config['primary']}}}
+\\definecolor{{secondary}}{{rgb}}{{{template_config['secondary']}}}
+\\definecolor{{accent}}{{rgb}}{{{template_config['accent']}}}
 \\definecolor{{lightgray}}{{rgb}}{{0.95, 0.95, 0.95}}
 \\definecolor{{darkgray}}{{rgb}}{{0.3, 0.3, 0.3}}
 
-% Custom title style
-\\pretitle{{\\begin{{center}}\\LARGE\\bfseries\\color{{primary}}}}
-\\posttitle{{\\par\\end{{center}}\\vspace{{0.5em}}}}
-\\preauthor{{\\begin{{center}}\\large\\color{{secondary}}}}
-\\postauthor{{\\end{{center}}}}
-\\predate{{\\begin{{center}}\\large\\color{{darkgray}}}}
-\\postdate{{\\par\\end{{center}}}}
+% Title styling
+\\title{{
+    {{\\color{{primary}}\\Huge\\bfseries Travel Itinerary}}\\\\
+    {{\\color{{secondary}}\\Large {destination} Adventure}}
+}}
+\\date{{}}
+\\author{{}}
 
 % Header and footer
 \\pagestyle{{fancy}}
@@ -181,14 +201,27 @@ def generate_latex_template(destination, date_range, budget, people, days, itine
 \\fancyhead[R]{{\\color{{secondary}}{destination}}}
 \\fancyfoot[C]{{\\color{{darkgray}}\\thepage}}
 \\renewcommand{{\\headrulewidth}}{{2pt}}
-\\renewcommand{{\\headrule}}{{\\hbox to\\headwidth{{\\color{{primary}}\\leaders\\hrule height \\headrulewidth\\hfill}}}}
+\\renewcommand{{\\headrule}}{{\\color{{primary}}\\hrule height \\headrulewidth}}
 
-% Custom section styles
+% Section styling based on template
 \\usepackage{{titlesec}}
-\\titleformat{{\\section}}
-  {{\\normalfont\\Large\\bfseries\\color{{primary}}}}
-  {{\\thesection}}{{1em}}{{}}
-  [\\color{{primary}}\\titlerule]
+""" + ("""
+\\titleformat{\\section}
+  {\\normalfont\\Large\\bfseries\\color{primary}}
+  {\\thesection}{1em}{}
+  [\\color{primary}\\titlerule]
+""" if template_id == 'modern' else """
+\\titleformat{\\section}
+  {\\normalfont\\Large\\bfseries\\color{primary}}
+  {\\thesection}{1em}{}
+  [\\color{secondary}\\rule{\\textwidth}{2pt}]
+""" if template_id == 'vintage' else """
+\\titleformat{\\section}
+  {\\normalfont\\Large\\bfseries\\color{primary}}
+  {}{0em}{}
+  [\\vspace{0.2em}\\color{primary}\\rule{\\textwidth}{0.5pt}\\vspace{0.3em}]
+""") + f"""
+
 \\titleformat{{\\subsection}}
   {{\\normalfont\\large\\bfseries\\color{{secondary}}}}
   {{\\thesubsection}}{{1em}}{{}}
@@ -196,23 +229,17 @@ def generate_latex_template(destination, date_range, budget, people, days, itine
   {{\\normalfont\\normalsize\\bfseries\\color{{accent}}}}
   {{\\thesubsubsection}}{{1em}}{{}}
 
-% Custom boxes
-\\tcbuselibrary{{skins}}
+% Custom info box
 \\newtcolorbox{{infobox}}{{
     colback=lightgray,
     colframe=primary,
-    boxrule=2pt,
-    arc=5pt,
-    left=10pt,
-    right=10pt,
-    top=10pt,
-    bottom=10pt
+    boxrule=3pt,
+    arc=8pt,
+    left=15pt,
+    right=15pt,
+    top=15pt,
+    bottom=15pt
 }}
-
-% Document content
-\\title{{\\Huge Travel Itinerary\\\\\\large {destination} Adventure}}
-\\author{{\\faUser\\ {people} {'Person' if people == '1' else 'People'} \\quad \\faCalendarAlt\\ {days} {'Day' if days == 1 else 'Days'} \\quad \\faRupeeSign\\ {budget}}}
-\\date{{{date_range}}}
 
 \\begin{{document}}
 
@@ -225,13 +252,12 @@ def generate_latex_template(destination, date_range, budget, people, days, itine
 \\textbf{{\\Large \\color{{primary}} Trip Overview}}
 \\end{{center}}
 \\vspace{{0.5em}}
-\\begin{{itemize}}[leftmargin=2em]
-\\item[\\faMapMarkerAlt] \\textbf{{Destination:}} {destination}
-\\item[\\faCalendarAlt] \\textbf{{Duration:}} {days} {'day' if days == 1 else 'days'} ({date_range})
-\\item[\\faUsers] \\textbf{{Travelers:}} {people} {'person' if people == '1' else 'people'}
-\\item[\\faRupeeSign] \\textbf{{Budget:}} ₹{budget}
-\\item[\\faClock] \\textbf{{Generated:}} {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
-\\end{{itemize}}
+
+\\noindent\\textbf{{\\color{{primary}}Destination:}} \\color{{darkgray}}{destination}\\\\
+\\textbf{{\\color{{secondary}}Duration:}} \\color{{darkgray}}{days} {'day' if days == 1 else 'days'} ({date_range})\\\\
+\\textbf{{\\color{{accent}}Travelers:}} \\color{{darkgray}}{people} {'person' if people == '1' else 'people'}\\\\
+\\textbf{{\\color{{primary}}Budget:}} \\color{{darkgray}}₹{budget}\\\\
+\\textbf{{\\color{{secondary}}Generated:}} \\color{{darkgray}}{datetime.now().strftime('%B %d, %Y at %I:%M %p')}
 \\end{{infobox}}
 
 \\vspace{{1em}}
@@ -249,6 +275,7 @@ def generate_latex_template(destination, date_range, budget, people, days, itine
 \\rule{{0.8\\textwidth}}{{0.5pt}}\\\\
 \\vspace{{0.5em}}
 \\textit{{Generated by Bagpack AI Travel Assistant}}\\\\
+\\textit{{Template: \\color{{primary}}{template_config['name']}}}\\\\
 \\textit{{Have a wonderful journey!}}
 \\end{{center}}
 
@@ -256,8 +283,8 @@ def generate_latex_template(destination, date_range, budget, people, days, itine
 """
     return latex_template
 
-def create_itinerary_pdf(markdown_text, places=None, options=None):
-    """Create PDF using LaTeX with beautiful theming"""
+def create_itinerary_pdf(markdown_text, places=None, options=None, template_id='modern'):
+    """Create PDF using LaTeX with the selected template"""
     
     # Extract information
     destination = "Your Destination"
@@ -281,7 +308,7 @@ def create_itinerary_pdf(markdown_text, places=None, options=None):
     people = "1"
     if options:
         if options.get('budget'):
-            budget = str(options['budget'])
+            budget = f"{options['budget']:,}"
         if options.get('people'):
             people = str(options['people'])
     
@@ -292,104 +319,248 @@ def create_itinerary_pdf(markdown_text, places=None, options=None):
     map_image_path = None
     temp_map_file = None
     if places and len(places) > 0:
-        try:
-            map_img_io = fetch_static_map(places)
-            if map_img_io:
-                temp_map_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-                pil_img = PILImage.open(map_img_io)
-                pil_img.thumbnail((600, 400))
-                pil_img.save(temp_map_file.name, format='PNG')
-                map_image_path = temp_map_file.name
-                print("Generated map image for LaTeX")
-        except Exception as e:
-            print(f"Could not generate map image: {e}")
+        map_data = fetch_static_map(places)
+        if map_data:
+            temp_map_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            temp_map_file.write(map_data)
+            temp_map_file.close()
+            map_image_path = temp_map_file.name
     
-    # Generate LaTeX document
+    # Generate LaTeX document with selected template
     latex_doc = generate_latex_template(
         destination, date_range, budget, people, days, 
-        latex_content, map_image_path
+        latex_content, map_image_path, template_id
     )
     
-    # Compile LaTeX to PDF
+    print(f"Attempting to generate PDF with template: {template_id}")
+    
+    # Check if pdflatex is available
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Write LaTeX file
-            tex_file = os.path.join(temp_dir, 'itinerary.tex')
-            with open(tex_file, 'w', encoding='utf-8') as f:
+            # Write LaTeX file with UTF-8 encoding
+            latex_file = os.path.join(temp_dir, "itinerary.tex")
+            with open(latex_file, 'w', encoding='utf-8') as f:
                 f.write(latex_doc)
             
-            # Copy map image to temp directory if it exists
+            print(f"pdflatex found, proceeding with LaTeX compilation")
+            print(f"LaTeX file written to: {latex_file}")
+            
+            # Copy map image if exists
             if map_image_path:
+                map_dest = os.path.join(temp_dir, "map.png")
                 import shutil
-                temp_map_path = os.path.join(temp_dir, 'map.png')
-                shutil.copy2(map_image_path, temp_map_path)
-                # Update LaTeX to use local path
-                latex_doc = latex_doc.replace(map_image_path, 'map.png')
-                with open(tex_file, 'w', encoding='utf-8') as f:
-                    f.write(latex_doc)
+                shutil.copy2(map_image_path, map_dest)
             
-            # Compile with pdflatex (run twice for proper references)
-            for i in range(2):
-                result = subprocess.run([
-                    'pdflatex', 
-                    '-interaction=nonstopmode',
-                    '-output-directory', temp_dir,
-                    tex_file
-                ], capture_output=True, text=True, cwd=temp_dir)
-                
-                if result.returncode != 0:
-                    print(f"LaTeX compilation error (pass {i+1}):")
-                    print(result.stdout)
-                    print(result.stderr)
-                    if i == 1:  # Only raise error on final pass
-                        raise Exception(f"LaTeX compilation failed: {result.stderr}")
+            # Run pdflatex with proper encoding settings and error handling
+            print("LaTeX compilation pass 1")
+            result = subprocess.run([
+                'pdflatex', 
+                '-interaction=nonstopmode',
+                '-output-directory=' + temp_dir,
+                '-jobname=itinerary',
+                latex_file
+            ], 
+            cwd=temp_dir,
+            capture_output=True,
+            text=True,  # This ensures text mode
+            encoding='utf-8',  # Explicit UTF-8 encoding
+            errors='replace',  # Replace invalid characters instead of failing
+            timeout=30
+            )
             
-            # Read the generated PDF
-            pdf_file = os.path.join(temp_dir, 'itinerary.pdf')
+            # Check if PDF was created successfully
+            pdf_file = os.path.join(temp_dir, "itinerary.pdf")
             if os.path.exists(pdf_file):
+                print("PDF generated successfully")
+                # Read PDF and return as BytesIO
                 with open(pdf_file, 'rb') as f:
                     pdf_buffer = io.BytesIO(f.read())
-                print("LaTeX PDF generated successfully")
+                
+                # Clean up temp map file
+                if temp_map_file:
+                    try:
+                        os.unlink(temp_map_file.name)
+                    except:
+                        pass
+                
                 return pdf_buffer
             else:
-                raise Exception("PDF file was not generated")
+                print(f"LaTeX compilation failed")
+                print(f"stdout: {result.stdout}")
+                print(f"stderr: {result.stderr}")
+                print(f"return code: {result.returncode}")
+                # Fall back to simple PDF
+                return create_simple_pdf_fallback(markdown_text, places, template_id)
                 
-    except FileNotFoundError:
-        print("pdflatex not found. Falling back to simple PDF generation.")
-        return create_simple_pdf_fallback(markdown_text, places)
-    except Exception as e:
-        print(f"LaTeX compilation failed: {e}")
-        return create_simple_pdf_fallback(markdown_text, places)
+    except subprocess.TimeoutExpired:
+        print("LaTeX compilation timed out, falling back to simple PDF")
+        return create_simple_pdf_fallback(markdown_text, places, template_id)
+    except (subprocess.CalledProcessError, FileNotFoundError, UnicodeDecodeError) as e:
+        print(f"LaTeX compilation error: {e}")
+        return create_simple_pdf_fallback(markdown_text, places, template_id)
     finally:
-        # Clean up temporary map file
+        # Clean up temp map file
         if temp_map_file:
             try:
                 os.unlink(temp_map_file.name)
             except:
                 pass
 
-def create_simple_pdf_fallback(markdown_text, places=None):
-    """Fallback PDF generation using reportlab if LaTeX fails"""
-    from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet
+def clean_text_for_reportlab(text):
+    """Clean markdown text for reportlab processing"""
+    # Remove markdown headers
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
     
+    # Fix double asterisks (bold) - ensure proper closing
+    text = re.sub(r'\*\*([^*]+?)\*\*', r'<b>\1</b>', text)
+    
+    # Fix single asterisks (italic)
+    text = re.sub(r'(?<!\*)\*([^*]+?)\*(?!\*)', r'<i>\1</i>', text)
+    
+    # Remove list markers
+    text = re.sub(r'^[\*\-\+]\s+', '• ', text, flags=re.MULTILINE)
+    
+    # Clean up any remaining markdown
+    text = re.sub(r'[`~]', '', text)
+    
+    # Escape ampersands that aren't part of HTML entities
+    text = re.sub(r'&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)', '&amp;', text)
+    
+    return text
+
+def create_simple_pdf_fallback(markdown_text, places=None, template_id='modern'):
+    """Improved fallback PDF generation using reportlab"""
+    print(f"Using fallback PDF generation with reportlab - template: {template_id}")
+    
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+        
+        # Create buffer
+        buffer = io.BytesIO()
+        
+        # Get template colors
+        template_config = get_template_config(template_id)
+        
+        # Convert RGB string to color object
+        def rgb_string_to_color(rgb_str):
+            r, g, b = map(float, rgb_str.split(', '))
+            return colors.Color(r, g, b)
+        
+        primary_color = rgb_string_to_color(template_config['primary'])
+        secondary_color = rgb_string_to_color(template_config['secondary'])
+        
+        # Create document
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            textColor=primary_color,
+            alignment=TA_CENTER
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            spaceAfter=12,
+            textColor=secondary_color,
+            leftIndent=0
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=6,
+            alignment=TA_JUSTIFY
+        )
+        
+        # Story container
+        story = []
+        
+        # Title
+        destination = "Your Destination"
+        if places and len(places) > 0:
+            destination = places[0].get('name', 'Your Destination').split(',')[0].strip()
+        
+        story.append(Paragraph(f"Travel Itinerary", title_style))
+        story.append(Paragraph(f"{destination} Adventure", heading_style))
+        story.append(Spacer(1, 12))
+        
+        # Template info
+        story.append(Paragraph(f"<b>Template:</b> {template_config['name']}", normal_style))
+        story.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Content
+        cleaned_text = clean_text_for_reportlab(markdown_text)
+        
+        # Split into paragraphs and process
+        paragraphs = cleaned_text.split('\n\n')
+        
+        for para in paragraphs:
+            if para.strip():
+                # Check if it's a heading (starts with #)
+                if para.strip().startswith('#'):
+                    heading_text = re.sub(r'^#+\s*', '', para.strip())
+                    story.append(Paragraph(heading_text, heading_style))
+                else:
+                    story.append(Paragraph(para.strip(), normal_style))
+                story.append(Spacer(1, 6))
+        
+        # Footer
+        story.append(Spacer(1, 30))
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph("Generated by Bagpack AI Travel Assistant", footer_style))
+        story.append(Paragraph("Have a wonderful journey!", footer_style))
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+        
+    except ImportError:
+        print("reportlab not available, creating simple text-based PDF")
+        return create_minimal_pdf_fallback(markdown_text, template_id)
+    except Exception as e:
+        print(f"Fallback PDF generation failed: {e}")
+        return create_minimal_pdf_fallback(markdown_text, template_id)
+
+def create_minimal_pdf_fallback(markdown_text, template_id='modern'):
+    """Absolute minimal fallback - just return the text"""
+    print("Creating minimal fallback response")
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
-    story = []
     
-    story.append(Paragraph("🗺️ Your Bagpack Itinerary", styles['Title']))
-    story.append(Spacer(1, 12))
+    # Create a very simple text response
+    simple_content = f"""
+TRAVEL ITINERARY - {template_id.upper()} TEMPLATE
+Generated by Bagpack AI Travel Assistant
+{datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+
+{markdown_text}
+
+Have a wonderful journey!
+""".encode('utf-8')
     
-    # Add content
-    lines = markdown_text.split('\n')
-    for line in lines:
-        if line.strip():
-            story.append(Paragraph(line, styles['Normal']))
-            story.append(Spacer(1, 6))
-    
-    doc.build(story)
+    buffer.write(simple_content)
     buffer.seek(0)
     return buffer
 

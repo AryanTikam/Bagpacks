@@ -76,11 +76,12 @@ function ItineraryMenu({
     });
   };
 
-  // Handle download - Only PDF now
+  // Handle download - Only PDF now with template selection
   const handleDownload = async () => {
     setDownloadingPdf(true);
     try {
-      await onDownload('pdf');
+      // Use default modern template for quick download from modal
+      await onDownload('pdf', 'modern');
     } catch (error) {
       console.error("Error downloading PDF:", error);
       alert("Failed to download PDF. Please try again.");
@@ -223,7 +224,7 @@ function ItineraryMenu({
                     <polyline points="7,10 12,15 17,10" stroke="currentColor" strokeWidth="2"/>
                     <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2"/>
                   </svg>
-                  Download PDF
+                  Quick Download (Modern)
                 </>
               )}
             </button>
