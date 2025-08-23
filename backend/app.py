@@ -16,8 +16,6 @@ NODE_SERVER_URL = "http://localhost:3001"
 
 @app.route('/api/destination/<place>', methods=['GET'])
 def destination(place):
-    # Remove adventure saving from destination search
-    # Only save when itinerary is actually generated
     data = get_place_details(place)
     return jsonify(data)
 
@@ -40,7 +38,8 @@ def itinerary():
     days = request.json.get("days")
     budget = request.json.get("budget")
     people = request.json.get("people")
-    format_type = request.json.get("format", "pdf")  # Only PDF is supported now
+    template_id = request.json.get("template", "modern")  # Get template selection
+    format_type = request.json.get("format", "pdf")
     
     # Force PDF format since DOCX is removed
     if format_type != "pdf":
@@ -75,7 +74,6 @@ def itinerary():
     auth_header = request.headers.get('Authorization')
     if auth_header and selected_places and itinerary_text:
         try:
-            # Save adventure with generated itinerary
             destination_name = selected_places[0] if selected_places else "Unknown"
             if len(selected_places) > 1:
                 destination_name = f"{selected_places[0]} & {len(selected_places)-1} more"
@@ -92,19 +90,19 @@ def itinerary():
             print(f"Adventure saved with itinerary: {response.status_code}")
         except Exception as e:
             print(f"Failed to save adventure: {e}")
-            pass  # Continue even if saving fails
+            pass
     
     # Handle preview request
     if request.args.get("preview") == "1":
         return jsonify({"reply": itinerary_text})
     
-    # Generate PDF with LaTeX
+    # Generate PDF with LaTeX and selected template
     from utils.itinerary import create_itinerary_pdf
-    pdf_buffer = create_itinerary_pdf(itinerary_text, places=places_with_coords, options=options)
+    pdf_buffer = create_itinerary_pdf(itinerary_text, places=places_with_coords, options=options, template_id=template_id)
     return send_file(
         pdf_buffer, 
         as_attachment=True, 
-        download_name="itinerary.pdf",
+        download_name=f"itinerary_{template_id}.pdf",
         mimetype="application/pdf"
     )
 

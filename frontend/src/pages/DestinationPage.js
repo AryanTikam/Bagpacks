@@ -157,7 +157,7 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
     setIsGenerating(false);
   };
 
-  const handleDownloadItinerary = async (format = 'pdf') => {
+  const handleDownloadItinerary = async (format = 'pdf', templateId = 'modern') => {
     try {
       const token = localStorage.getItem('token');
       const config = {
@@ -170,13 +170,14 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
         places: itineraryPlaces.map((p) => p.name),
         userLocation: userLocation,
         format: format,
+        template: templateId,  // Add template parameter
         ...itineraryOptions
       }, config);
       
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `itinerary.${format}`);
+      link.setAttribute("download", `itinerary_${templateId}.${format}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
