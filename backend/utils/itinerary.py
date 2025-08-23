@@ -1,18 +1,18 @@
-import io
-import os
-import tempfile
 import subprocess
-import requests
+import tempfile
+import os
+import io
 import re
-from PIL import Image as PILImage
 from datetime import datetime, timedelta
+from PIL import Image as PILImage
+import requests
 
 def fetch_static_map(places, width=600, height=350):
     marker_strs = []
     for i, place in enumerate(places):
         lat, lon = place.get("coords", [None, None])
         if lat is not None and lon is not None:
-            color = ["red", "blue", "green", "yellow", "purple"][i % 5]
+            color = "red" if i == 0 else "blue"
             marker_strs.append(f"markers={lat},{lon},{color}{i+1}")
     
     if not marker_strs:
@@ -30,11 +30,11 @@ def fetch_static_map(places, width=600, height=350):
     
     for url in map_urls:
         try:
-            resp = requests.get(url, timeout=5)
-            if resp.status_code == 200:
-                return io.BytesIO(resp.content)
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                return response.content
         except Exception as e:
-            print(f"Could not fetch static map from {url}: {e}")
+            print(f"Map service failed: {e}")
             continue
     
     print("All map services failed, continuing without map")
@@ -52,7 +52,7 @@ def markdown_to_latex(markdown_text):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            latex_content.append('')
+            latex_content.append('\\vspace{0.5em}')
             continue
             
         # Escape special LaTeX characters
@@ -64,44 +64,31 @@ def markdown_to_latex(markdown_text):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            title = line[2:].strip()
-            title = title.replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#')
-            title = title.replace('_', '\\_').replace('{', '\\{').replace('}', '\\}')
-            latex_content.append(f'\\section{{{title}}}')
+            escaped_line = escaped_line[2:].strip()
+            latex_content.append(f'\\section{{{handle_bold_text(escaped_line)}}}')
         elif line.startswith('## '):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            title = line[3:].strip()
-            title = title.replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#')
-            title = title.replace('_', '\\_').replace('{', '\\{').replace('}', '\\}')
-            latex_content.append(f'\\subsection{{{title}}}')
+            escaped_line = escaped_line[3:].strip()
+            latex_content.append(f'\\subsection{{{handle_bold_text(escaped_line)}}}')
         elif line.startswith('### '):
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            title = line[4:].strip()
-            title = title.replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#')
-            title = title.replace('_', '\\_').replace('{', '\\{').replace('}', '\\}')
-            latex_content.append(f'\\subsubsection{{{title}}}')
+            escaped_line = escaped_line[4:].strip()
+            latex_content.append(f'\\subsubsection{{{handle_bold_text(escaped_line)}}}')
         elif line.startswith('- ') or line.startswith('* '):
             if not in_list:
                 latex_content.append('\\begin{itemize}')
                 in_list = True
-            item = line[2:].strip()
-            item = item.replace('&', '\\&').replace('%', '\\%').replace('$', '\\$').replace('#', '\\#')
-            item = item.replace('_', '\\_').replace('{', '\\{').replace('}', '\\}')
-            # Handle bold text in list items
-            item = handle_bold_text(item)
-            latex_content.append(f'\\item {item}')
+            escaped_line = escaped_line[2:].strip()
+            latex_content.append(f'\\item {handle_bold_text(escaped_line)}')
         else:
             if in_list:
                 latex_content.append('\\end{itemize}')
                 in_list = False
-            if line:
-                # Handle bold text and other formatting
-                formatted_line = handle_bold_text(escaped_line)
-                latex_content.append(formatted_line)
+            latex_content.append(f'{handle_bold_text(escaped_line)}\\\\')
     
     if in_list:
         latex_content.append('\\end{itemize}')
@@ -110,8 +97,6 @@ def markdown_to_latex(markdown_text):
 
 def handle_bold_text(text):
     """Handle **bold** and *italic* markdown formatting"""
-    import re
-    
     # Handle **bold** text
     text = re.sub(r'\*\*(.*?)\*\*', r'\\textbf{\1}', text)
     
@@ -323,7 +308,7 @@ def create_itinerary_pdf(markdown_text, places=None, options=None, template_id='
     people = "1"
     if options:
         if options.get('budget'):
-            budget = str(options['budget'])
+            budget = f"{options['budget']:,}"
         if options.get('people'):
             people = str(options['people'])
     
@@ -334,17 +319,12 @@ def create_itinerary_pdf(markdown_text, places=None, options=None, template_id='
     map_image_path = None
     temp_map_file = None
     if places and len(places) > 0:
-        try:
-            map_img_io = fetch_static_map(places)
-            if map_img_io:
-                temp_map_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-                pil_img = PILImage.open(map_img_io)
-                pil_img.thumbnail((600, 400))
-                pil_img.save(temp_map_file.name, format='PNG')
-                map_image_path = temp_map_file.name
-                print("Generated map image for LaTeX")
-        except Exception as e:
-            print(f"Could not generate map image: {e}")
+        map_data = fetch_static_map(places)
+        if map_data:
+            temp_map_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            temp_map_file.write(map_data)
+            temp_map_file.close()
+            map_image_path = temp_map_file.name
     
     # Generate LaTeX document with selected template
     latex_doc = generate_latex_template(
@@ -356,59 +336,70 @@ def create_itinerary_pdf(markdown_text, places=None, options=None, template_id='
     
     # Check if pdflatex is available
     try:
-        subprocess.run(['which', 'pdflatex'], capture_output=True, check=True)
-        print("pdflatex found, proceeding with LaTeX compilation")
-        
-        # Compile LaTeX to PDF
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Write LaTeX file
-            tex_file = os.path.join(temp_dir, 'itinerary.tex')
-            with open(tex_file, 'w', encoding='utf-8') as f:
+            # Write LaTeX file with UTF-8 encoding
+            latex_file = os.path.join(temp_dir, "itinerary.tex")
+            with open(latex_file, 'w', encoding='utf-8') as f:
                 f.write(latex_doc)
             
-            print(f"LaTeX file written to: {tex_file}")
+            print(f"pdflatex found, proceeding with LaTeX compilation")
+            print(f"LaTeX file written to: {latex_file}")
             
-            # Copy map image to temp directory if it exists
+            # Copy map image if exists
             if map_image_path:
+                map_dest = os.path.join(temp_dir, "map.png")
                 import shutil
-                temp_map_path = os.path.join(temp_dir, 'map.png')
-                shutil.copy2(map_image_path, temp_map_path)
-                print(f"Map image copied to: {temp_map_path}")
+                shutil.copy2(map_image_path, map_dest)
             
-            # Compile with pdflatex (run twice for proper references)
-            for i in range(2):
-                print(f"LaTeX compilation pass {i+1}")
-                result = subprocess.run([
-                    'pdflatex', 
-                    '-interaction=nonstopmode',
-                    '-output-directory', temp_dir,
-                    'itinerary.tex'
-                ], capture_output=True, text=True, cwd=temp_dir)
-                
-                if result.returncode != 0:
-                    print(f"LaTeX compilation error (pass {i+1}):")
-                    print("STDOUT:", result.stdout)
-                    print("STDERR:", result.stderr)
-                    if i == 1:  # Only raise error on final pass
-                        print("LaTeX compilation failed, falling back to simple PDF")
-                        return create_simple_pdf_fallback(markdown_text, places, template_id)
+            # Run pdflatex with proper encoding settings and error handling
+            print("LaTeX compilation pass 1")
+            result = subprocess.run([
+                'pdflatex', 
+                '-interaction=nonstopmode',
+                '-output-directory=' + temp_dir,
+                '-jobname=itinerary',
+                latex_file
+            ], 
+            cwd=temp_dir,
+            capture_output=True,
+            text=True,  # This ensures text mode
+            encoding='utf-8',  # Explicit UTF-8 encoding
+            errors='replace',  # Replace invalid characters instead of failing
+            timeout=30
+            )
             
-            # Read the generated PDF
-            pdf_file = os.path.join(temp_dir, 'itinerary.pdf')
+            # Check if PDF was created successfully
+            pdf_file = os.path.join(temp_dir, "itinerary.pdf")
             if os.path.exists(pdf_file):
+                print("PDF generated successfully")
+                # Read PDF and return as BytesIO
                 with open(pdf_file, 'rb') as f:
                     pdf_buffer = io.BytesIO(f.read())
-                print(f"LaTeX PDF generated successfully with template: {template_id}")
+                
+                # Clean up temp map file
+                if temp_map_file:
+                    try:
+                        os.unlink(temp_map_file.name)
+                    except:
+                        pass
+                
                 return pdf_buffer
             else:
-                print("PDF file was not generated, falling back to simple PDF")
+                print(f"LaTeX compilation failed")
+                print(f"stdout: {result.stdout}")
+                print(f"stderr: {result.stderr}")
+                print(f"return code: {result.returncode}")
+                # Fall back to simple PDF
                 return create_simple_pdf_fallback(markdown_text, places, template_id)
                 
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print("pdflatex not found, falling back to simple PDF")
+    except subprocess.TimeoutExpired:
+        print("LaTeX compilation timed out, falling back to simple PDF")
+        return create_simple_pdf_fallback(markdown_text, places, template_id)
+    except (subprocess.CalledProcessError, FileNotFoundError, UnicodeDecodeError) as e:
+        print(f"LaTeX compilation error: {e}")
         return create_simple_pdf_fallback(markdown_text, places, template_id)
     finally:
-        # Clean up temporary map file
+        # Clean up temp map file
         if temp_map_file:
             try:
                 os.unlink(temp_map_file.name)
@@ -417,8 +408,6 @@ def create_itinerary_pdf(markdown_text, places=None, options=None, template_id='
 
 def clean_text_for_reportlab(text):
     """Clean markdown text for reportlab processing"""
-    import re
-    
     # Remove markdown headers
     text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
     
@@ -445,119 +434,135 @@ def create_simple_pdf_fallback(markdown_text, places=None, template_id='modern')
     
     try:
         from reportlab.lib.pagesizes import letter, A4
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.colors import HexColor
         from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+        
+        # Create buffer
+        buffer = io.BytesIO()
         
         # Get template colors
         template_config = get_template_config(template_id)
-        primary_color = template_config['primary'].replace(', ', ',').split(',')
-        primary_rgb = tuple(float(x.strip()) for x in primary_color)
-        primary_hex = "#{:02x}{:02x}{:02x}".format(
-            int(primary_rgb[0] * 255),
-            int(primary_rgb[1] * 255),
-            int(primary_rgb[2] * 255)
-        )
         
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer, 
-            pagesize=A4, 
-            rightMargin=72, 
-            leftMargin=72, 
-            topMargin=72, 
-            bottomMargin=18
-        )
+        # Convert RGB string to color object
+        def rgb_string_to_color(rgb_str):
+            r, g, b = map(float, rgb_str.split(', '))
+            return colors.Color(r, g, b)
         
-        # Create custom styles
+        primary_color = rgb_string_to_color(template_config['primary'])
+        secondary_color = rgb_string_to_color(template_config['secondary'])
+        
+        # Create document
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        
+        # Get styles
         styles = getSampleStyleSheet()
         
-        # Custom title style
+        # Custom styles
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
             fontSize=24,
             spaceAfter=30,
-            textColor=HexColor(primary_hex),
-            alignment=1  # Center alignment
+            textColor=primary_color,
+            alignment=TA_CENTER
         )
         
-        # Custom heading style  
         heading_style = ParagraphStyle(
             'CustomHeading',
             parent=styles['Heading2'],
             fontSize=16,
-            spaceBefore=12,
-            spaceAfter=6,
-            textColor=HexColor(primary_hex)
+            spaceAfter=12,
+            textColor=secondary_color,
+            leftIndent=0
         )
         
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=6,
+            alignment=TA_JUSTIFY
+        )
+        
+        # Story container
         story = []
         
-        # Add title
-        story.append(Paragraph(f"🗺️ Your Bagpack Travel Itinerary", title_style))
-        story.append(Paragraph(f"Template: {template_config['name']}", styles['Normal']))
+        # Title
+        destination = "Your Destination"
+        if places and len(places) > 0:
+            destination = places[0].get('name', 'Your Destination').split(',')[0].strip()
+        
+        story.append(Paragraph(f"Travel Itinerary", title_style))
+        story.append(Paragraph(f"{destination} Adventure", heading_style))
+        story.append(Spacer(1, 12))
+        
+        # Template info
+        story.append(Paragraph(f"<b>Template:</b> {template_config['name']}", normal_style))
+        story.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", normal_style))
         story.append(Spacer(1, 20))
         
-        # Clean the markdown text
+        # Content
         cleaned_text = clean_text_for_reportlab(markdown_text)
         
-        # Process content line by line
-        lines = cleaned_text.split('\n')
-        for line in lines:
-            line = line.strip()
-            if not line:
-                story.append(Spacer(1, 6))
-                continue
-                
-            try:
-                if line.startswith('# '):
-                    story.append(Paragraph(line[2:], heading_style))
-                elif line.startswith('## '):
-                    story.append(Paragraph(line[3:], heading_style))
-                elif line.startswith('### '):
-                    story.append(Paragraph(line[4:], heading_style))
-                elif line.startswith('• '):
-                    story.append(Paragraph(line, styles['Normal']))
+        # Split into paragraphs and process
+        paragraphs = cleaned_text.split('\n\n')
+        
+        for para in paragraphs:
+            if para.strip():
+                # Check if it's a heading (starts with #)
+                if para.strip().startswith('#'):
+                    heading_text = re.sub(r'^#+\s*', '', para.strip())
+                    story.append(Paragraph(heading_text, heading_style))
                 else:
-                    # Regular paragraph
-                    story.append(Paragraph(line, styles['Normal']))
-                    story.append(Spacer(1, 6))
-            except Exception as e:
-                # If there's an error with a specific line, just add it as plain text
-                print(f"Error processing line: {line[:50]}... - {e}")
-                # Remove any HTML tags and add as plain text
-                clean_line = re.sub(r'<[^>]+>', '', line)
-                story.append(Paragraph(clean_line, styles['Normal']))
+                    story.append(Paragraph(para.strip(), normal_style))
                 story.append(Spacer(1, 6))
         
-        # Add footer
+        # Footer
         story.append(Spacer(1, 30))
-        footer_text = f"Generated by Bagpack AI • Template: {template_config['name']} • Have a wonderful journey!"
-        story.append(Paragraph(footer_text, styles['Normal']))
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph("Generated by Bagpack AI Travel Assistant", footer_style))
+        story.append(Paragraph("Have a wonderful journey!", footer_style))
         
+        # Build PDF
         doc.build(story)
         buffer.seek(0)
-        print("Reportlab PDF generated successfully")
         return buffer
         
     except ImportError:
-        print("Reportlab not available, creating minimal text response")
-        # Create a minimal text response
-        buffer = io.BytesIO()
-        simple_content = f"Travel Itinerary\n\n{markdown_text}\n\nGenerated by Bagpack AI"
-        buffer.write(simple_content.encode('utf-8'))
-        buffer.seek(0)
-        return buffer
+        print("reportlab not available, creating simple text-based PDF")
+        return create_minimal_pdf_fallback(markdown_text, template_id)
     except Exception as e:
-        print(f"Error in fallback PDF generation: {e}")
-        # Create a minimal text response
-        buffer = io.BytesIO()
-        simple_content = f"Travel Itinerary\n\n{markdown_text}\n\nGenerated by Bagpack AI"
-        buffer.write(simple_content.encode('utf-8'))
-        buffer.seek(0)
-        return buffer
+        print(f"Fallback PDF generation failed: {e}")
+        return create_minimal_pdf_fallback(markdown_text, template_id)
+
+def create_minimal_pdf_fallback(markdown_text, template_id='modern'):
+    """Absolute minimal fallback - just return the text"""
+    print("Creating minimal fallback response")
+    buffer = io.BytesIO()
+    
+    # Create a very simple text response
+    simple_content = f"""
+TRAVEL ITINERARY - {template_id.upper()} TEMPLATE
+Generated by Bagpack AI Travel Assistant
+{datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+
+{markdown_text}
+
+Have a wonderful journey!
+""".encode('utf-8')
+    
+    buffer.write(simple_content)
+    buffer.seek(0)
+    return buffer
 
 # Remove the DOCX function entirely
 def create_itinerary_docx(*args, **kwargs):
