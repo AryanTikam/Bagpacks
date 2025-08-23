@@ -6,10 +6,11 @@ import Chatbot from "../components/Chatbot";
 import ItineraryMenu from "../components/ItineraryMenu";
 import Navigation from "../components/Navigation";
 import axios from "axios";
+import { getApiUrl } from '../config/api';
 import "../styles/DestinationPage.css";
 import ItineraryViewPage from "./ItineraryViewPage";
 
-function DestinationPage({ destination, onBack, onViewAdventure }) {
+function DestinationPage({ destination, onBack, onViewAdventure, onViewCommunity }) {
   const [locationData, setLocationData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -42,7 +43,7 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
     
     // Add timeout and better error handling
     axios
-      .get(`http://localhost:5000/api/destination/${destination}`, {
+      .get(`${getApiUrl()}/api/destination/${destination}`, {
         ...config,
         timeout: 10000 // 10 second timeout
       })
@@ -55,8 +56,7 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
         
         // Check if it's a network error (Flask server not running)
         if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
-          console.error("Flask backend server is not running on port 5000");
-          // You could show a specific error message to the user here
+          console.error("Flask server appears to be down");
         }
         
         setIsLoading(false);
@@ -139,51 +139,79 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
     setItinerary(null);
     try {
       const token = localStorage.getItem('token');
-      const config = {
-        timeout: 30000, // 30 seconds for itinerary generation
-        ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
-      };
       
-      const res = await axios.post("http://localhost:5000/api/itinerary?preview=1", {
-        places: itineraryPlaces.map((p) => p.name),
-        userLocation: userLocation,
-        ...itineraryOptions
-      }, config);
-      setItinerary({ text: res.data.reply || "Itinerary generated!", pdf: null });
+      // Generate the full itinerary (not just preview) and save it to backend
+      const response = await fetch(`${getApiUrl()}/api/itinerary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          places: itineraryPlaces.map((p) => p.name),
+          userLocation: userLocation ? `${userLocation[0]}, ${userLocation[1]}` : null,
+          ...itineraryOptions,
+          returnText: true // New parameter to get both text and save to backend
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setItinerary({ text: data.reply });
+      } else {
+        console.error('Failed to generate itinerary');
+        alert('Failed to generate itinerary. Please try again.');
+      }
     } catch (e) {
-      console.error("Error generating itinerary:", e);
-      setItinerary({ text: "Failed to generate itinerary. Please make sure the Flask backend is running.", pdf: null });
+      console.error('Error generating itinerary:', e);
+      alert('Error generating itinerary. Please check your connection.');
     }
     setIsGenerating(false);
   };
 
   const handleDownloadItinerary = async (format = 'pdf', templateId = 'modern') => {
+    if (!itinerary) {
+      alert('Please generate an itinerary first.');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      const config = {
-        responseType: "blob",
-        timeout: 30000,
-        ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
-      };
       
-      const res = await axios.post("http://localhost:5000/api/itinerary", {
-        places: itineraryPlaces.map((p) => p.name),
-        userLocation: userLocation,
-        format: format,
-        template: templateId,  // Add template parameter
-        ...itineraryOptions
-      }, config);
+      // Use the existing itinerary text for download
+      const response = await fetch(`${getApiUrl()}/api/itinerary/download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          itineraryText: itinerary.text,
+          places: itineraryPlaces.map((p) => ({ name: p.name, coords: p.coords })),
+          format: format,
+          template: templateId,
+          destination: itineraryPlaces[0]?.name || 'destination',
+          ...itineraryOptions
+        })
+      });
       
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `itinerary_${templateId}.${format}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        const destination = itineraryPlaces[0]?.name || 'destination';
+        link.setAttribute("download", `${destination}_itinerary_${templateId}.${format}`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert(`Failed to download ${format.toUpperCase()}.`);
+      }
     } catch (e) {
-      console.error("Error downloading itinerary:", e);
-      alert(`Failed to download ${format.toUpperCase()}. Please make sure the Flask backend is running.`);
+      console.error(`Error downloading ${format}:`, e);
+      alert(`Failed to download ${format.toUpperCase()}.`);
     }
   };
 
@@ -223,6 +251,7 @@ function DestinationPage({ destination, onBack, onViewAdventure }) {
         onBackClick={onBack}
         currentPage="destination"
         onViewAdventure={onViewAdventure}
+        onViewCommunity={onViewCommunity}
       />
       
       <div className="destination-content">

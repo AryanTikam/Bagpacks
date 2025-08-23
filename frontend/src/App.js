@@ -5,38 +5,62 @@ import DestinationPage from "./pages/DestinationPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ItineraryViewPage from "./pages/ItineraryViewPage";
+import CommunityPage from "./pages/CommunityPage";
+import { getApiUrl } from './config/api';
 import "./styles/globals.css";
 
 function AppContent() {
   const [destination, setDestination] = useState("");
   const [viewingAdventure, setViewingAdventure] = useState(null);
+  const [currentPage, setCurrentPage] = useState("home"); // home, community, destination, adventure
   const { user, loading } = useAuth();
 
   const handleBack = () => {
     setDestination("");
     setViewingAdventure(null);
+    setCurrentPage("home");
   };
 
   const handleViewAdventure = (adventure) => {
     setDestination("");
     setViewingAdventure(adventure);
+    setCurrentPage("adventure");
   };
 
-  const handleDownloadAdventure = async (format = 'pdf') => {
-    if (!viewingAdventure) return;
+  const handleViewCommunity = () => {
+    setDestination("");
+    setViewingAdventure(null);
+    setCurrentPage("community");
+  };
+
+  const handleSearchDestination = (dest) => {
+    setDestination(dest);
+    setViewingAdventure(null);
+    setCurrentPage("destination");
+  };
+
+  const handleDownloadAdventure = async (format = 'pdf', templateId = 'modern') => {
+    if (!viewingAdventure || !viewingAdventure.itinerary) {
+      alert('No itinerary available for download.');
+      return;
+    }
     
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch("http://localhost:5000/api/itinerary", {
+      // Use the existing itinerary text for download
+      const response = await fetch(`${getApiUrl()}/api/itinerary/download`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          places: viewingAdventure.places.map((p) => p.name),
+          itineraryText: viewingAdventure.itinerary.text,
+          places: viewingAdventure.places,
           format: format,
+          template: templateId,
+          destination: viewingAdventure.destination,
           ...viewingAdventure.options
         })
       });
@@ -46,7 +70,7 @@ function AppContent() {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `${viewingAdventure.destination}_itinerary.${format}`);
+        link.setAttribute("download", `${viewingAdventure.destination}_itinerary_${templateId}.${format}`);
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -73,8 +97,18 @@ function AppContent() {
     return <LoginPage />;
   }
 
+  // Show community page
+  if (currentPage === "community") {
+    return (
+      <CommunityPage
+        onBack={handleBack}
+        onViewAdventure={handleViewAdventure}
+      />
+    );
+  }
+
   // Show adventure itinerary view
-  if (viewingAdventure) {
+  if (currentPage === "adventure" && viewingAdventure) {
     return (
       <ItineraryViewPage
         itinerary={viewingAdventure.itinerary}
@@ -88,21 +122,25 @@ function AppContent() {
     );
   }
 
+  // Show destination page
+  if (currentPage === "destination" && destination) {
+    return (
+      <DestinationPage 
+        destination={destination} 
+        onBack={handleBack}
+        onViewAdventure={handleViewAdventure}
+        onViewCommunity={handleViewCommunity}
+      />
+    );
+  }
+
+  // Show home page
   return (
-    <div>
-      {destination ? (
-        <DestinationPage 
-          destination={destination} 
-          onBack={handleBack}
-          onViewAdventure={handleViewAdventure}
-        />
-      ) : (
-        <HomePage 
-          onSearch={setDestination}
-          onViewAdventure={handleViewAdventure}
-        />
-      )}
-    </div>
+    <HomePage 
+      onSearch={handleSearchDestination}
+      onViewAdventure={handleViewAdventure}
+      onViewCommunity={handleViewCommunity}
+    />
   );
 }
 

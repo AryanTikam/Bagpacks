@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getApiUrl } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -17,8 +18,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Verify token with backend
-      fetch('http://localhost:3001/api/auth/me', {
+      fetch(`${getApiUrl('node')}/api/auth/me`, {  // Changed to 'node'
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch(`${getApiUrl('node')}/api/auth/login`, {  // Changed to 'node'
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, password) => {
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch(`${getApiUrl('node')}/api/auth/register`, {  // Changed to 'node'
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

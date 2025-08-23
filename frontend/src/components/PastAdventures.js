@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/PastAdventures.css';
+import { getApiUrl } from '../config/api';
 
 const PastAdventures = ({ onClose, onViewAdventure }) => {
   const [adventures, setAdventures] = useState([]);
@@ -13,7 +14,7 @@ const PastAdventures = ({ onClose, onViewAdventure }) => {
   const fetchAdventures = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/adventures', {
+      const response = await fetch(`${getApiUrl('node')}/api/adventures`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -26,6 +27,7 @@ const PastAdventures = ({ onClose, onViewAdventure }) => {
         setError('Failed to fetch adventures');
       }
     } catch (err) {
+      console.error('Error fetching adventures:', err);
       setError('Network error');
     } finally {
       setLoading(false);
@@ -33,13 +35,11 @@ const PastAdventures = ({ onClose, onViewAdventure }) => {
   };
 
   const deleteAdventure = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this adventure?')) {
-      return;
-    }
-
+    if (!window.confirm('Are you sure you want to delete this adventure?')) return;
+    
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/adventures/${id}`, {
+      const response = await fetch(`${getApiUrl('node')}/api/adventures/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -47,12 +47,13 @@ const PastAdventures = ({ onClose, onViewAdventure }) => {
       });
 
       if (response.ok) {
-        setAdventures(adventures.filter(adventure => adventure._id !== id));
+        setAdventures(prev => prev.filter(adventure => adventure._id !== id));
       } else {
-        setError('Failed to delete adventure');
+        alert('Failed to delete adventure');
       }
     } catch (err) {
-      setError('Network error');
+      console.error('Error deleting adventure:', err);
+      alert('Network error');
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getApiUrl } from '../config/api';
 import '../styles/UserProfile.css';
 
 const UserProfile = ({ onClose }) => {
@@ -79,7 +80,7 @@ const UserProfile = ({ onClose }) => {
         updateData.newPassword = formData.newPassword;
       }
 
-      const response = await fetch('http://localhost:3001/api/auth/profile', {
+      const response = await fetch(`${getApiUrl('node')}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

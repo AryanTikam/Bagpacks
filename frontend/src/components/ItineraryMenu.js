@@ -78,13 +78,17 @@ function ItineraryMenu({
 
   // Handle download - Only PDF now with template selection
   const handleDownload = async () => {
+    if (!itinerary) {
+      alert('Please generate an itinerary first.');
+      return;
+    }
+    
     setDownloadingPdf(true);
     try {
-      // Use default modern template for quick download from modal
-      await onDownload('pdf', 'modern');
+      await onDownload('pdf', 'modern'); // Use existing itinerary
     } catch (error) {
-      console.error("Error downloading PDF:", error);
-      alert("Failed to download PDF. Please try again.");
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
     } finally {
       setDownloadingPdf(false);
     }

@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import axios from "axios";
+import { getApiUrl } from "../config/api";
 import "../styles/Chatbot.css";
 
 function Chatbot({ location, onResize, userLocation }) {
@@ -81,7 +82,7 @@ function Chatbot({ location, onResize, userLocation }) {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:5000/api/chat", { 
+      const response = await axios.post(`${getApiUrl()}/api/chat`, { 
         message: input, 
         location,
         userLocation 
