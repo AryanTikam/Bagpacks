@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { getApiUrl } from '../config/api';
 import '../styles/CreatePostModal.css';
 
