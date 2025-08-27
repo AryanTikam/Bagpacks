@@ -45,7 +45,7 @@ function DestinationPage({ destination, onBack, onViewAdventure, onViewCommunity
     axios
       .get(`${getApiUrl()}/api/destination/${destination}`, {
         ...config,
-        timeout: 10000 // 10 second timeout
+        timeout: 30000 // 30 seconds
       })
       .then((res) => {
         setLocationData(res.data);

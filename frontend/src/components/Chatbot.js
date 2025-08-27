@@ -86,6 +86,8 @@ function Chatbot({ location, onResize, userLocation }) {
         message: input, 
         location,
         userLocation 
+      }, {
+        timeout: 30000 // 30 seconds
       });
       setIsLoading(false);
       setMessages(msgs => [...msgs, { sender: "bot", text: response.data.reply }]);
