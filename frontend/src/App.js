@@ -13,17 +13,22 @@ function AppContent() {
   const [destination, setDestination] = useState("");
   const [viewingAdventure, setViewingAdventure] = useState(null);
   const [currentPage, setCurrentPage] = useState("home");
+  const [isHydrated, setIsHydrated] = useState(false);
   const { user, loading } = useAuth();
 
   // Save state to localStorage
   useEffect(() => {
+    if (!user || !isHydrated) {
+      return;
+    }
+
     const state = {
       currentPage,
       destination,
       viewingAdventure: viewingAdventure ? viewingAdventure._id : null
     };
     localStorage.setItem('appState', JSON.stringify(state));
-  }, [currentPage, destination, viewingAdventure]);
+  }, [currentPage, destination, viewingAdventure, user, isHydrated]);
 
   const handleBack = () => {
     setDestination("");
@@ -44,37 +49,64 @@ function AppContent() {
       if (response.ok) {
         const adventure = await response.json();
         setViewingAdventure(adventure);
+        return true;
       }
+      // Saved adventure is no longer available; reset to a safe home route.
+      handleBack();
+      return false;
     } catch (error) {
       console.error('Error fetching adventure:', error);
       // If we can't fetch the adventure, go back to home
       handleBack();
+      return false;
     }
   }, []);
 
-  // Restore state from localStorage on mount
+  // Restore state from localStorage on mount before enabling persistence.
   useEffect(() => {
-    if (user) {
-      const savedState = localStorage.getItem('appState');
-      if (savedState) {
-        try {
-          const state = JSON.parse(savedState);
-          if (state.currentPage && state.currentPage !== 'home') {
-            setCurrentPage(state.currentPage);
-            if (state.destination) {
-              setDestination(state.destination);
-            }
-            if (state.viewingAdventure) {
-              // Fetch the adventure from the server
-              fetchAdventure(state.viewingAdventure);
-            }
-          }
-        } catch (error) {
-          console.error('Error restoring app state:', error);
-        }
-      }
+    if (loading || !user) {
+      return;
     }
-  }, [user, fetchAdventure]); // Add fetchAdventure to dependencies
+
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const savedState = localStorage.getItem('appState');
+      if (!savedState) {
+        if (!cancelled) setIsHydrated(true);
+        return;
+      }
+
+      try {
+        const state = JSON.parse(savedState);
+        if (state.currentPage) {
+          setCurrentPage(state.currentPage);
+        }
+        if (state.destination) {
+          setDestination(state.destination);
+        }
+        if (state.viewingAdventure) {
+          await fetchAdventure(state.viewingAdventure);
+        }
+      } catch (error) {
+        console.error('Error restoring app state:', error);
+      } finally {
+        if (!cancelled) setIsHydrated(true);
+      }
+    };
+
+    hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, loading, fetchAdventure]);
+
+  useEffect(() => {
+    if (!user) {
+      setIsHydrated(false);
+    }
+  }, [user]);
 
   const handleViewAdventure = (adventure) => {
     setDestination("");
@@ -150,6 +182,15 @@ function AppContent() {
 
   if (!user) {
     return <LoginPage />;
+  }
+
+  if (!isHydrated || (currentPage === "adventure" && !viewingAdventure)) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Restoring your last page...</p>
+      </div>
+    );
   }
 
   // Show community page

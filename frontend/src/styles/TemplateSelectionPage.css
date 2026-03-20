@@ -160,6 +160,92 @@
   margin-bottom: 0.25rem;
 }
 
+.mockup-divider {
+  height: 1px;
+  background: #d1d5db;
+  margin: 0.35rem 0;
+}
+
+.journal-layout .mockup-stamp {
+  width: 28px;
+  height: 28px;
+  border: 2px dashed #c08457;
+  border-radius: 50%;
+  align-self: flex-end;
+}
+
+.journal-layout .mockup-note {
+  height: 28px;
+  border-radius: 6px;
+  background: #fef3c7;
+}
+
+.postcard-layout {
+  position: relative;
+  overflow: hidden;
+}
+
+.postcard-layout .mockup-sun {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.postcard-layout .mockup-hills {
+  height: 18px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #fb923c, #f97316);
+}
+
+.wave-layout .mockup-wave {
+  height: 14px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(
+    90deg,
+    #7dd3fc,
+    #7dd3fc 12px,
+    #38bdf8 12px,
+    #38bdf8 24px
+  );
+}
+
+.editorial-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mockup-column-group {
+  border-left: 2px solid #111827;
+  padding-left: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mosaic-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.mosaic-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+}
+
+.mosaic-tile {
+  height: 26px;
+  border-radius: 4px;
+}
+
+.mosaic-tile.primary { background: #7e22ce; }
+.mosaic-tile.secondary { background: #db2777; }
+.mosaic-tile.accent { background: #ea580c; }
+.mosaic-tile.neutral { background: #f3e8ff; }
+
 /* Template-specific styling */
 .preview-mockup.modern .mockup-header {
   background: linear-gradient(135deg, #2563eb, #7c3aed);
@@ -188,6 +274,26 @@
 
 .preview-mockup.minimalist .mockup-header {
   background: linear-gradient(135deg, #374151, #6b7280);
+}
+
+.preview-mockup.sunset .mockup-header {
+  background: linear-gradient(135deg, #e85d04, #f48c06, #dc2f02);
+}
+
+.preview-mockup.coastal .mockup-header {
+  background: linear-gradient(135deg, #0077b6, #0096c7, #00b4d8);
+}
+
+.preview-mockup.noir {
+  background: #f3f4f6;
+}
+
+.preview-mockup.noir .mockup-header {
+  background: linear-gradient(135deg, #111827, #374151);
+}
+
+.preview-mockup.festival .mockup-header {
+  background: linear-gradient(135deg, #7e22ce, #db2777, #ea580c);
 }
 
 .template-info {
