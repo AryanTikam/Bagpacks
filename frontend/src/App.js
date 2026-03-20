@@ -158,6 +158,7 @@ function AppContent() {
       <CommunityPage
         onBack={handleBack}
         onViewAdventure={handleViewAdventure}
+        onViewCommunity={handleViewCommunity}
       />
     );
   }

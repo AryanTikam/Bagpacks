@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 console.log('🚀 Starting Bagpack server...');
 
@@ -35,6 +36,81 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+app.post('/api/send-package-email', async (req, res) => {
+  const { email, packageId, packageName } = req.body || {};
+
+  if (!email || !packageId || !packageName) {
+    return res.status(400).json({
+      message: 'email, packageId and packageName are required'
+    });
+  }
+
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = Number(process.env.SMTP_PORT || 587);
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const emailFrom = process.env.EMAIL_FROM || smtpUser;
+  const smtpSecure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true';
+
+  if (!smtpHost || !smtpUser || !smtpPass || !emailFrom) {
+    return res.status(500).json({
+      message: 'Email service is not configured on the server'
+    });
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass
+      }
+    });
+
+    const packageLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}`;
+
+    await transporter.sendMail({
+      from: emailFrom,
+      to: email,
+      subject: `Your Bagpack package: ${packageName}`,
+      text: [
+        `Hi there,`,
+        '',
+        `Thanks for exploring Bagpack. Here are your selected package details:`,
+        `Package: ${packageName}`,
+        `Package ID: ${packageId}`,
+        '',
+        `Open Bagpack to continue planning: ${packageLink}`,
+        '',
+        `Happy travels,`,
+        `Team Bagpack`
+      ].join('\n'),
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+          <h2 style="margin: 0 0 12px;">Your Bagpack package is ready</h2>
+          <p>Thanks for exploring Bagpack. Here are your selected package details:</p>
+          <ul>
+            <li><strong>Package:</strong> ${packageName}</li>
+            <li><strong>Package ID:</strong> ${packageId}</li>
+          </ul>
+          <p>
+            Continue planning your trip here:
+            <a href="${packageLink}" target="_blank" rel="noopener noreferrer">Open Bagpack</a>
+          </p>
+          <p>Happy travels,<br/>Team Bagpack</p>
+        </div>
+      `
+    });
+
+    return res.status(200).json({ message: 'Package details emailed successfully' });
+  } catch (error) {
+    console.error('Error sending package email:', error);
+    return res.status(500).json({ message: 'Failed to send package email' });
+  }
+});
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const adventureRoutes = require('./routes/adventures');
@@ -53,7 +129,8 @@ app.get('/', (req, res) => {
     endpoints: [
       '/api/auth',
       '/api/adventures', 
-      '/api/community'
+      '/api/community',
+      '/api/send-package-email'
     ]
   });
 });
@@ -85,4 +162,5 @@ app.listen(PORT, () => {
   console.log(`   - http://localhost:${PORT}/api/auth`);
   console.log(`   - http://localhost:${PORT}/api/adventures`);
   console.log(`   - http://localhost:${PORT}/api/community`);
+  console.log(`   - http://localhost:${PORT}/api/send-package-email`);
 });

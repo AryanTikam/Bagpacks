@@ -5,7 +5,7 @@ import CreatePostModal from '../components/CreatePostModal';
 import { getApiUrl } from '../config/api';
 import '../styles/CommunityPage.css';
 
-const CommunityPage = ({ onBack, onViewAdventure }) => {
+const CommunityPage = ({ onBack, onViewAdventure, onViewCommunity }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -141,6 +141,7 @@ const CommunityPage = ({ onBack, onViewAdventure }) => {
           onBackClick={onBack}
           currentPage="community"
           onViewAdventure={onViewAdventure}
+          onViewCommunity={onViewCommunity || (() => {})}
         />
         <div className="loading-container">
           <div className="loading-spinner"></div>
@@ -158,7 +159,7 @@ const CommunityPage = ({ onBack, onViewAdventure }) => {
         onBackClick={onBack}
         currentPage="community"
         onViewAdventure={onViewAdventure}
-        onViewCommunity={() => {}} // Empty function since we're already on community
+        onViewCommunity={onViewCommunity || (() => {})}
       />
       
       <div className="community-content">

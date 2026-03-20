@@ -230,6 +230,8 @@ function DestinationPage({ destination, onBack, onViewAdventure, onViewCommunity
         onBack={() => setShowItineraryView(false)}
         onDownload={handleDownloadItinerary}
         destination={destination}
+        onViewAdventure={onViewAdventure}
+        onViewCommunity={onViewCommunity}
       />
     );
   }
@@ -329,6 +331,7 @@ function DestinationPage({ destination, onBack, onViewAdventure, onViewCommunity
         onBackClick={onBack}
         currentPage="destination"
         onViewAdventure={onViewAdventure}
+        onViewCommunity={onViewCommunity}
       />
       <h2>Backend Connection Error</h2>
       <p>Could not connect to the Flask backend server.</p>

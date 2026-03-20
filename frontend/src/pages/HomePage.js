@@ -1,10 +1,15 @@
 // --- src/pages/HomePage.js ---
 import React, { useState } from "react";
 import Navigation from "../components/Navigation";
+import { useAuth } from "../context/AuthContext";
+import { getApiUrl } from "../config/api";
 import "../styles/HomePage.css";
 
 function HomePage({ onSearch, onViewAdventure, onViewCommunity }) {
   const [input, setInput] = useState("");
+  const [emailStatus, setEmailStatus] = useState(null);
+  const { user } = useAuth();
+  const userEmail = user?.email || "";
 
   const handleSearch = () => {
     if (input.trim()) onSearch(input);
@@ -13,6 +18,50 @@ function HomePage({ onSearch, onViewAdventure, onViewCommunity }) {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && input.trim()) {
       onSearch(input);
+    }
+  };
+
+  const handlePackageClick = async (travelPackage) => {
+    if (!userEmail) {
+      setEmailStatus({
+        type: "error",
+        message: "We couldn't find an email on your account. Please update your profile and try again.",
+      });
+      return;
+    }
+
+    try {
+      setEmailStatus({
+        type: "sending",
+        message: "Sending package details to your inbox...",
+      });
+
+      const response = await fetch(`${getApiUrl("node")}/api/send-package-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          packageId: travelPackage.id,
+          packageName: travelPackage.title,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send email");
+      }
+
+      setEmailStatus({
+        type: "success",
+        message: `Package details for "${travelPackage.title}" have been emailed to ${userEmail}.`,
+      });
+    } catch (error) {
+      console.error("Error sending package email:", error);
+      setEmailStatus({
+        type: "error",
+        message: "Something went wrong while sending the email. Please try again.",
+      });
     }
   };
 
@@ -47,6 +96,45 @@ function HomePage({ onSearch, onViewAdventure, onViewCommunity }) {
       image: "/Udaipur.jpg",
       description: "City of lakes and palaces"
     }
+  ];
+
+  const packages = [
+    {
+      id: "goa-beach-getaway",
+      title: "Goa Beach Getaway",
+      location: "Goa, India",
+      image: "/Goa.jpg",
+      duration: "4N / 5D",
+      price: "₹18,999",
+      description: "Sun, sand and nightlife with optional water sports.",
+    },
+    {
+      id: "manali-adventure-escape",
+      title: "Manali Adventure Escape",
+      location: "Manali, Himachal Pradesh",
+      image: "/Manali.jpg",
+      duration: "5N / 6D",
+      price: "₹24,499",
+      description: "Snow-capped peaks, Solang Valley and adventure activities.",
+    },
+    {
+      id: "kerala-backwaters-retreat",
+      title: "Kerala Backwaters Retreat",
+      location: "Alleppey & Munnar, Kerala",
+      image: "https://images.unsplash.com/photo-1501975558162-0be7b8ca95ea?w=400&h=300&fit=crop",
+      duration: "5N / 6D",
+      price: "₹27,999",
+      description: "Houseboat stay, tea gardens and serene backwaters.",
+    },
+    {
+      id: "rajasthan-royal-trail",
+      title: "Rajasthan Royal Trail",
+      location: "Jaipur, Jodhpur & Udaipur",
+      image: "/Jaipur.jpg",
+      duration: "6N / 7D",
+      price: "₹32,999",
+      description: "Palaces, forts and royal heritage across Rajasthan.",
+    },
   ];
 
   return (
@@ -116,6 +204,71 @@ function HomePage({ onSearch, onViewAdventure, onViewCommunity }) {
                 <div className="card-content">
                   <h3>{dest.name}</h3>
                   <p>{dest.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      {/* Explore Our Packages */}
+      <div className="packages-section">
+        <div className="section-header">
+          <h2>Explore Our Packages</h2>
+          <p>
+            Choose a curated Indian getaway and we&apos;ll email you the package
+            details instantly
+            {userEmail && (
+              <>
+                {" "}
+                at <span className="packages-email-highlight">{userEmail}</span>.
+              </>
+            )}
+            {!userEmail && "."}
+          </p>
+        </div>
+
+        {emailStatus && (
+          <p className={`packages-email-status ${emailStatus.type}`}>
+            {emailStatus.message}
+          </p>
+        )}
+
+        <div className="carousel packages-carousel">
+          <div className="carousel-items">
+            {packages.map((travelPackage) => (
+              <div key={travelPackage.id} className="carousel-item package-card">
+                <div className="image-container">
+                  <img
+                    src={travelPackage.image}
+                    alt={travelPackage.title}
+                    loading="lazy"
+                  />
+                  <div className="image-overlay">
+                    <button
+                      className="explore-btn package-cta-btn"
+                      onClick={() => handlePackageClick(travelPackage)}
+                    >
+                      Get this package on email
+                    </button>
+                  </div>
+                </div>
+                <div className="card-content package-card-content">
+                  <h3>{travelPackage.title}</h3>
+                  <span className="package-location">
+                    {travelPackage.location}
+                  </span>
+                  <p className="package-description">
+                    {travelPackage.description}
+                  </p>
+                  <div className="package-meta">
+                    <span className="package-duration">
+                      {travelPackage.duration}
+                    </span>
+                    <span className="package-price">
+                      {travelPackage.price}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
