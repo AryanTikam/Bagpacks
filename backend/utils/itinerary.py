@@ -25,8 +25,6 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
-    ListFlowable,
-    ListItem,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -386,7 +384,9 @@ def callout_table(text, theme, style, icon="TIP"):
 
 
 def list_flowable_from_tag(list_tag, styles, level=0):
-    items = []
+    flowables = []
+    ordered = list_tag.name.lower() == "ol"
+    item_number = 1
 
     for li in list_tag.find_all("li", recursive=False):
         fragments = []
@@ -399,29 +399,36 @@ def list_flowable_from_tag(list_tag, styles, level=0):
                 fragments.append(render_inline(child))
 
         item_text = "".join(fragments).strip() or "Item"
-        item_para = Paragraph(item_text, styles["body_left"])
-        items.append(ListItem(item_para))
+        
+        # Format with bullet or number
+        if ordered:
+            prefix = f"{item_number}. "
+            item_number += 1
+        else:
+            prefix = "• "
+        
+        # Create paragraph with prefix and left indent
+        full_text = prefix + item_text
+        indent = 14 + (level * 12)
+        
+        # Create a modified style with left padding
+        item_style = ParagraphStyle(
+            f'body_left_indent_{level}',
+            parent=styles['body_left'],
+            leftIndent=indent,
+            spaceAfter=4
+        )
+        
+        item_para = Paragraph(full_text, item_style)
+        flowables.append(item_para)
 
+        # Add nested lists
         for nested in nested_lists:
             nested_flowable = list_flowable_from_tag(nested, styles, level + 1)
             if nested_flowable:
-                items.append(nested_flowable)
+                flowables.extend(nested_flowable)
 
-    if not items:
-        return None
-
-    ordered = list_tag.name.lower() == "ol"
-    return ListFlowable(
-        items,
-        bulletType="1" if ordered else "bullet",
-        start="1",
-        leftIndent=14 + (level * 12),
-        bulletFontName=styles["body_left"].fontName,
-        bulletFontSize=9,
-        bulletOffsetY=2,
-        spaceBefore=3,
-        spaceAfter=6,
-    )
+    return flowables if flowables else None
 
 
 def _render_plain_markdown(markdown_text, styles, theme):
@@ -498,7 +505,10 @@ def markdown_to_flowables(markdown_text, styles, theme):
         elif name in ("ul", "ol"):
             lst = list_flowable_from_tag(node, styles)
             if lst:
-                flowables.append(lst)
+                if isinstance(lst, list):
+                    flowables.extend(lst)
+                else:
+                    flowables.append(lst)
         elif name == "blockquote":
             p = paragraph_from_tag(node, styles["body_left"])
             if p:
