@@ -6,12 +6,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # Configure with API key, not application default credentials
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Use the correct model name for Gemini
-model = genai.GenerativeModel("gemini-2.0-flash")
+# Use the current Gemini flash model by default
+model = genai.GenerativeModel(GEMINI_MODEL)
 
 def get_gemini_response(message, location=None):
     if not GEMINI_API_KEY:
