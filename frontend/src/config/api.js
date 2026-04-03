@@ -4,8 +4,8 @@ const API_CONFIG = {
     NODE_API_URL: 'http://localhost:3001'
   },
   production: {
-    FLASK_API_URL: process.env.REACT_APP_FLASK_API_URL || 'https://your-flask-app.herokuapp.com',
-    NODE_API_URL: process.env.REACT_APP_NODE_API_URL || 'https://your-node-app.herokuapp.com'
+    FLASK_API_URL: process.env.REACT_APP_FLASK_API_URL || 'https://bagpacks.onrender.com',
+    NODE_API_URL: process.env.REACT_APP_NODE_API_URL || 'https://bagpacks-node-backend.onrender.com'
   }
 };
 

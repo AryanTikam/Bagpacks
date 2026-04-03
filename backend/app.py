@@ -9,16 +9,23 @@ from utils.location import get_place_details
 app = Flask(__name__)
 
 # Environment-based configuration
-NODE_SERVER_URL = os.getenv('NODE_SERVER_URL', 'http://localhost:3001')
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+NODE_SERVER_URL = os.getenv('NODE_SERVER_URL', 'https://bagpacks-node-backend.onrender.com')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://bagpacks-explore.netlify.app')
+
+allowed_origins = [
+    FRONTEND_URL,
+    'https://bagpacks-explore.netlify.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+]
 
 # CORS configuration - allow multiple origins for deployment
-CORS(app, origins=[
-    FRONTEND_URL,
-    "http://localhost:3000",  # Development
-    "https://your-app-name.netlify.app",  # Production (replace with your actual domain)
-    "https://your-app-name.vercel.app"   # Alternative deployment
-], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+CORS(
+    app,
+    origins=list(dict.fromkeys(filter(None, allowed_origins))),
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"]
+)
 
 @app.route('/api/destination/<place>', methods=['GET'])
 def destination(place):

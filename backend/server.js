@@ -15,13 +15,32 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://bagpacks-explore.netlify.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 // Enhanced CORS configuration
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: (origin, callback) => {
+    // Allow tools like curl/postman and server-to-server calls with no Origin header.
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    const isAllowed = allowedOrigins.some(
+      (allowedOrigin) => allowedOrigin.replace(/\/$/, '') === normalizedOrigin
+    );
+
+    if (isAllowed) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -69,7 +88,7 @@ app.post('/api/send-package-email', async (req, res) => {
       }
     });
 
-    const packageLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}`;
+    const packageLink = `${process.env.FRONTEND_URL || 'https://bagpacks-explore.netlify.app'}`;
 
     await transporter.sendMail({
       from: emailFrom,
